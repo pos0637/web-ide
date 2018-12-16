@@ -23,6 +23,7 @@ import java.util.Map;
 public class JavaDebugger implements Runnable {
     // refs: https://blog.csdn.net/ksqqxq/article/details/7419758
     // refs: https://www.cnblogs.com/wade-luffy/p/5991785.html#_label4
+    // javac -g -source 1.8 -target 1.8 Test.java
     // java -Xdebug -Xrunjdwp:transport=dt_socket,suspend=y,server=y,address=8000 Test
     private static final String DT_SOCKET = "dt_socket";
 
@@ -151,12 +152,30 @@ public class JavaDebugger implements Runnable {
         } else if (event instanceof BreakpointEvent) {
             BreakpointEvent breakpointEvent = (BreakpointEvent) event;
             ThreadReference threadReference = breakpointEvent.thread();
+            List<StackFrame> frames = threadReference.frames();
+            for (StackFrame frame : frames) {
+                Location location = frame.location();
+                Method method = location.method();
+                Tracker.info(String.format("=========== frame -> %s (%s:%s)", method.name(), location.sourcePath(), location.lineNumber()));
+            }
+
             StackFrame stackFrame = threadReference.frame(0);
             List<LocalVariable> localVariables = stackFrame.visibleVariables();
+            // Method method = stackFrame.location().method();
+            // List<LocalVariable> localVariables = method.variables();
+
             for (LocalVariable localVariable : localVariables) {
                 Value value = stackFrame.getValue(localVariable);
-                Tracker.info("local->" + value.type() + "," + value.getClass() + "," + value);
+                Tracker.info(String.format("=========== local -> %s %s = %s", value.type(), localVariable.name(), value));
             }
+
+            Tracker.info(stackFrame.thisObject().type().name());
+            List<Field> fields = stackFrame.thisObject().referenceType().allFields();
+            Map<Field, Value> map = stackFrame.thisObject().getValues(fields);
+            for (Map.Entry<Field, Value> entry : map.entrySet()) {
+                Tracker.info(String.format("=========== member -> %s %s = %s", entry.getValue().type(), entry.getKey().name(), entry.getValue()));
+            }
+
         }
     }
 }
