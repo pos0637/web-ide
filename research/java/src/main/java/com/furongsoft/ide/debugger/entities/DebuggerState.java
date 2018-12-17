@@ -17,7 +17,12 @@ public enum DebuggerState {
     /**
      * 调试中
      */
-    Running(1);
+    Running(1),
+
+    /**
+     * 断点调试中
+     */
+    Breaking(2);
 
     /**
      * 调试器状态
