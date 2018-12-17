@@ -16,7 +16,7 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class StackFrame {
+public class Stack {
     /**
      * 调用栈
      */

@@ -27,4 +27,13 @@ public class Breakpoint {
      * 是否启用
      */
     private boolean enabled;
+
+    /**
+     * 获取键值
+     *
+     * @return 键值
+     */
+    public String key() {
+        return String.format("%s:%d", className, line);
+    }
 }
