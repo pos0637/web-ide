@@ -29,6 +29,11 @@ public class Breakpoint {
     private boolean enabled;
 
     /**
+     * 是否激活
+     */
+    private boolean active;
+
+    /**
      * 获取键值
      *
      * @return 键值

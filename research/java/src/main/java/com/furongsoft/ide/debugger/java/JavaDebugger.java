@@ -5,14 +5,15 @@ import com.furongsoft.core.misc.StringUtils;
 import com.furongsoft.core.misc.Tracker;
 import com.furongsoft.ide.debugger.core.Debugger;
 import com.furongsoft.ide.debugger.entities.*;
-import com.sun.jdi.Location;
 import com.sun.jdi.*;
+import com.sun.jdi.Location;
 import com.sun.jdi.connect.AttachingConnector;
 import com.sun.jdi.connect.Connector;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.Transport;
 import com.sun.jdi.event.*;
 import com.sun.jdi.request.*;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -25,6 +26,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @author Alex
  */
+@Component
 public class JavaDebugger extends Debugger implements Runnable {
     // refs: https://blog.csdn.net/ksqqxq/article/details/7419758
     // refs: https://www.cnblogs.com/wade-luffy/p/5991785.html#_label4
@@ -61,9 +63,15 @@ public class JavaDebugger extends Debugger implements Runnable {
     private ProcessExecutor targetProcess;
 
     /**
-     * 目标线程
+     * 当前调试线程
      */
     private ThreadReference threadReference;
+
+    /**
+     * 调试请求列表
+     */
+    private ConcurrentHashMap<ThreadReference, StepRequest> stepRequestMap = new ConcurrentHashMap<>();
+
 
     @Override
     public void dispose() {
@@ -85,7 +93,7 @@ public class JavaDebugger extends Debugger implements Runnable {
             return false;
         }
 
-        if (!breakpointRequests.contains(breakpoint.key())) {
+        if (!breakpointRequests.containsKey(breakpoint.key())) {
             return false;
         }
 
@@ -100,7 +108,7 @@ public class JavaDebugger extends Debugger implements Runnable {
 
     @Override
     public synchronized boolean setBreakpointEnabled(Breakpoint breakpoint, boolean enabled) {
-        if (!breakpointRequests.contains(breakpoint.key())) {
+        if (!breakpointRequests.containsKey(breakpoint.key())) {
             return false;
         }
 
@@ -209,6 +217,8 @@ public class JavaDebugger extends Debugger implements Runnable {
             }
 
             debuggerState = DebuggerState.Idle;
+            threadReference = null;
+            stepRequestMap.clear();
         }
 
         return true;
@@ -225,6 +235,8 @@ public class JavaDebugger extends Debugger implements Runnable {
             return false;
         }
 
+        threadReference = null;
+        stepRequestMap.clear();
         vm.resume();
 
         return true;
@@ -236,10 +248,16 @@ public class JavaDebugger extends Debugger implements Runnable {
             return false;
         }
 
+        if (stepRequestMap.containsKey(threadReference)) {
+            EventRequestManager eventRequestManager = vm.eventRequestManager();
+            eventRequestManager.deleteEventRequest(stepRequestMap.get(threadReference));
+        }
+
         EventRequestManager eventRequestManager = vm.eventRequestManager();
-        StepRequest request = eventRequestManager.createStepRequest(this.threadReference, StepRequest.STEP_LINE, StepRequest.STEP_INTO);
+        StepRequest request = eventRequestManager.createStepRequest(threadReference, StepRequest.STEP_LINE, StepRequest.STEP_INTO);
         request.addCountFilter(1);
         request.enable();
+        stepRequestMap.put(threadReference, request);
         vm.resume();
 
         return true;
@@ -251,10 +269,16 @@ public class JavaDebugger extends Debugger implements Runnable {
             return false;
         }
 
+        if (stepRequestMap.containsKey(threadReference)) {
+            EventRequestManager eventRequestManager = vm.eventRequestManager();
+            eventRequestManager.deleteEventRequest(stepRequestMap.get(threadReference));
+        }
+
         EventRequestManager eventRequestManager = vm.eventRequestManager();
         StepRequest request = eventRequestManager.createStepRequest(this.threadReference, StepRequest.STEP_LINE, StepRequest.STEP_OUT);
         request.addCountFilter(1);
         request.enable();
+        stepRequestMap.put(threadReference, request);
         vm.resume();
 
         return true;
@@ -266,10 +290,16 @@ public class JavaDebugger extends Debugger implements Runnable {
             return false;
         }
 
+        if (stepRequestMap.containsKey(threadReference)) {
+            EventRequestManager eventRequestManager = vm.eventRequestManager();
+            eventRequestManager.deleteEventRequest(stepRequestMap.get(threadReference));
+        }
+
         EventRequestManager eventRequestManager = vm.eventRequestManager();
         StepRequest request = eventRequestManager.createStepRequest(this.threadReference, StepRequest.STEP_LINE, StepRequest.STEP_OVER);
         request.addCountFilter(1);
         request.enable();
+        stepRequestMap.put(threadReference, request);
         vm.resume();
 
         return true;
@@ -392,6 +422,10 @@ public class JavaDebugger extends Debugger implements Runnable {
             return false;
         }
 
+        if (breakpointRequests.containsKey(breakpoint.key())) {
+            return true;
+        }
+
         EventRequestManager eventRequestManager = vm.eventRequestManager();
         ClassType clazz = (ClassType) vm.classesByName(breakpoint.getClassName()).get(0);
 
@@ -400,6 +434,7 @@ public class JavaDebugger extends Debugger implements Runnable {
             BreakpointRequest breakpointRequest = eventRequestManager.createBreakpointRequest(location);
             breakpointRequest.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
             breakpointRequest.enable();
+            breakpoint.setActive(true);
             breakpointRequests.put(breakpoint.key(), breakpointRequest);
 
             return true;

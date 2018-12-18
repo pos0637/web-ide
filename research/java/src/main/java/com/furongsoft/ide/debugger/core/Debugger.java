@@ -65,7 +65,7 @@ public abstract class Debugger implements IDebugger {
 
     @Override
     public synchronized boolean deleteBreakpoint(Breakpoint breakpoint) {
-        if (breakpoints.contains(breakpoint)) {
+        if (breakpoints.containsKey(breakpoint.key())) {
             breakpoints.remove(breakpoint);
             return true;
         } else {

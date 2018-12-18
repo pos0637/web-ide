@@ -1,48 +1,105 @@
 package com.furongsoft.ide.debugger.controllers;
 
+import com.furongsoft.core.entities.RestResponse;
+import com.furongsoft.ide.debugger.core.IDebugger;
 import com.furongsoft.ide.debugger.entities.Breakpoint;
-import com.furongsoft.ide.debugger.java.JavaDebugger;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/debugger")
 public class DebuggerController {
-    private JavaDebugger debugger = new JavaDebugger();
+    private final IDebugger debugger;
 
-    @RequestMapping("/start")
-    public void start() {
-        debugger.addBreakpoint(new Breakpoint("Test", 9, true));
-        debugger.start("Test", "{\"-classpath\": \"./demos/demo1\"}");
+    @Autowired
+    public DebuggerController(IDebugger debugger) {
+        this.debugger = debugger;
     }
 
-    @RequestMapping("/stop")
-    public void stop() {
-        debugger.stop();
+    @GetMapping("/state")
+    public RestResponse getState() {
+        return new RestResponse(HttpStatus.OK, null, debugger.getState());
     }
 
-    @RequestMapping("/suspend")
-    public void suspend() {
-        debugger.suspend();
+    @GetMapping("/location")
+    public RestResponse getLocation() {
+        return new RestResponse(HttpStatus.OK, null, debugger.getLocation());
     }
 
-    @RequestMapping("/resume")
-    public void resume() {
-        debugger.resume();
+    @GetMapping("/stack")
+    public RestResponse getStack() {
+        return new RestResponse(HttpStatus.OK, null, debugger.getStack());
     }
 
-    @RequestMapping("/stepinto")
-    public void stepInto() {
-        debugger.stepInto();
+    @GetMapping("/variables")
+    public RestResponse getVariables() {
+        return new RestResponse(HttpStatus.OK, null, debugger.getVariables());
     }
 
-    @RequestMapping("/stepout")
-    public void stepOut() {
-        debugger.stepOut();
+    @GetMapping("/breakpoints")
+    public RestResponse getBreakpoints() {
+        return new RestResponse(HttpStatus.OK, null, debugger.getBreakpoints());
     }
 
-    @RequestMapping("/stepover")
-    public void stepOver() {
-        debugger.stepOver();
+    @PostMapping("/breakpoints")
+    public RestResponse addBreakpoint(@RequestBody Breakpoint breakpoint) {
+        boolean ret = debugger.addBreakpoint(breakpoint);
+        return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @PostMapping("/breakpoints/delete")
+    public RestResponse deleteBreakpoint(@RequestParam Breakpoint breakpoint) {
+        boolean ret = debugger.deleteBreakpoint(breakpoint);
+        return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @DeleteMapping("/breakpoints")
+    public RestResponse deleteAllBreakpoints() {
+        boolean ret = debugger.deleteAllBreakpoint();
+        return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @PostMapping("/start")
+    public RestResponse start(@RequestParam String script, @RequestParam String arguments) {
+        boolean ret = debugger.start("Test", "{\"-classpath\": \"./demos/demo1\"}");
+        return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @PostMapping("/stop")
+    public RestResponse stop() {
+        boolean ret = debugger.stop();
+        return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @PostMapping("/suspend")
+    public RestResponse suspend() {
+        boolean ret = debugger.suspend();
+        return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @GetMapping("/resume")
+    public RestResponse resume() {
+        boolean ret = debugger.resume();
+        return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @PostMapping("/stepInto")
+    public RestResponse stepInto() {
+        boolean ret = debugger.stepInto();
+        return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @GetMapping("/stepOut")
+    public RestResponse stepOut() {
+        boolean ret = debugger.stepOut();
+        return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+
+    @PostMapping("/stepOver")
+    public RestResponse stepOver() {
+        boolean ret = debugger.stepOver();
+        return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }
