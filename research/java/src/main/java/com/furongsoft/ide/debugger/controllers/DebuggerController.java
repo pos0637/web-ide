@@ -8,10 +8,41 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/v1/debugger")
 public class DebuggerController {
+    private JavaDebugger debugger = new JavaDebugger();
+
     @RequestMapping("/start")
     public void start() {
-        JavaDebugger debugger = new JavaDebugger();
-        debugger.addBreakpoint(new Breakpoint("Test", 14, true));
-        debugger.start("Test", "{\"-classpath\": \"D:/programs/web/web-ide/research/java/demos/demo1\"}");
+        debugger.addBreakpoint(new Breakpoint("Test", 9, true));
+        debugger.start("Test", "{\"-classpath\": \"./demos/demo1\"}");
+    }
+
+    @RequestMapping("/stop")
+    public void stop() {
+        debugger.stop();
+    }
+
+    @RequestMapping("/suspend")
+    public void suspend() {
+        debugger.suspend();
+    }
+
+    @RequestMapping("/resume")
+    public void resume() {
+        debugger.resume();
+    }
+
+    @RequestMapping("/stepinto")
+    public void stepInto() {
+        debugger.stepInto();
+    }
+
+    @RequestMapping("/stepout")
+    public void stepOut() {
+        debugger.stepOut();
+    }
+
+    @RequestMapping("/stepover")
+    public void stepOver() {
+        debugger.stepOver();
     }
 }

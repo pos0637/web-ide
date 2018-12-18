@@ -125,7 +125,7 @@ public interface IDebugger {
      *
      * @return 是否成功
      */
-    boolean stepIn();
+    boolean stepInto();
 
     /**
      * 退出当前方法

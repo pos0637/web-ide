@@ -4,19 +4,18 @@ import com.alibaba.fastjson.JSONObject;
 import com.furongsoft.core.misc.StringUtils;
 import com.furongsoft.core.misc.Tracker;
 import com.furongsoft.ide.debugger.core.Debugger;
-import com.furongsoft.ide.debugger.entities.Breakpoint;
+import com.furongsoft.ide.debugger.entities.*;
+import com.sun.jdi.Location;
 import com.sun.jdi.*;
 import com.sun.jdi.connect.AttachingConnector;
 import com.sun.jdi.connect.Connector;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.Transport;
 import com.sun.jdi.event.*;
-import com.sun.jdi.request.BreakpointRequest;
-import com.sun.jdi.request.ClassPrepareRequest;
-import com.sun.jdi.request.EventRequest;
-import com.sun.jdi.request.EventRequestManager;
+import com.sun.jdi.request.*;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -60,6 +59,11 @@ public class JavaDebugger extends Debugger implements Runnable {
      * 目标进程
      */
     private ProcessExecutor targetProcess;
+
+    /**
+     * 目标线程
+     */
+    private ThreadReference threadReference;
 
     @Override
     public void dispose() {
@@ -119,7 +123,6 @@ public class JavaDebugger extends Debugger implements Runnable {
             }
 
             // 启动脚本
-
             Map<String, String> map = JSONObject.parseObject(arguments, Map.class);
             StringBuilder sb = new StringBuilder();
             if (arguments != null) {
@@ -165,6 +168,7 @@ public class JavaDebugger extends Debugger implements Runnable {
 
             registerEvents(null);
 
+            debuggerState = DebuggerState.Running;
             runFlag = true;
             thread = new Thread(this);
             thread.start();
@@ -203,6 +207,8 @@ public class JavaDebugger extends Debugger implements Runnable {
                 targetProcess.stop();
                 targetProcess = null;
             }
+
+            debuggerState = DebuggerState.Idle;
         }
 
         return true;
@@ -214,23 +220,59 @@ public class JavaDebugger extends Debugger implements Runnable {
     }
 
     @Override
-    public boolean resume() {
-        return false;
+    public synchronized boolean resume() {
+        if (debuggerState != DebuggerState.Breaking) {
+            return false;
+        }
+
+        vm.resume();
+
+        return true;
     }
 
     @Override
-    public boolean stepIn() {
-        return false;
+    public synchronized boolean stepInto() {
+        if (debuggerState != DebuggerState.Breaking) {
+            return false;
+        }
+
+        EventRequestManager eventRequestManager = vm.eventRequestManager();
+        StepRequest request = eventRequestManager.createStepRequest(this.threadReference, StepRequest.STEP_LINE, StepRequest.STEP_INTO);
+        request.addCountFilter(1);
+        request.enable();
+        vm.resume();
+
+        return true;
     }
 
     @Override
-    public boolean stepOut() {
-        return false;
+    public synchronized boolean stepOut() {
+        if (debuggerState != DebuggerState.Breaking) {
+            return false;
+        }
+
+        EventRequestManager eventRequestManager = vm.eventRequestManager();
+        StepRequest request = eventRequestManager.createStepRequest(this.threadReference, StepRequest.STEP_LINE, StepRequest.STEP_OUT);
+        request.addCountFilter(1);
+        request.enable();
+        vm.resume();
+
+        return true;
     }
 
     @Override
-    public boolean stepOver() {
-        return false;
+    public synchronized boolean stepOver() {
+        if (debuggerState != DebuggerState.Breaking) {
+            return false;
+        }
+
+        EventRequestManager eventRequestManager = vm.eventRequestManager();
+        StepRequest request = eventRequestManager.createStepRequest(this.threadReference, StepRequest.STEP_LINE, StepRequest.STEP_OVER);
+        request.addCountFilter(1);
+        request.enable();
+        vm.resume();
+
+        return true;
     }
 
     @Override
@@ -240,16 +282,19 @@ public class JavaDebugger extends Debugger implements Runnable {
             try {
                 EventSet eventSet = eventQueue.remove();
                 EventIterator eventIterator = eventSet.eventIterator();
+                boolean resume = true;
                 while (eventIterator.hasNext()) {
                     Event event = eventIterator.next();
                     try {
-                        execute(event);
+                        resume = execute(event) && resume;
                     } catch (Exception e) {
                         Tracker.error(e);
                     }
                 }
 
-                eventSet.resume();
+                if (resume) {
+                    eventSet.resume();
+                }
             } catch (Exception e) {
                 Tracker.error(e);
                 break;
@@ -371,11 +416,13 @@ public class JavaDebugger extends Debugger implements Runnable {
      * @param event 事件
      * @throws Exception 异常
      */
-    private void execute(Event event) throws Exception {
+    private boolean execute(Event event) throws Exception {
         if (event instanceof VMStartEvent) {
             Tracker.info("VMStartEvent");
+            return true;
         } else if (event instanceof VMDisconnectEvent) {
             Tracker.info("VMDisconnectEvent");
+            return true;
         } else if (event instanceof ClassPrepareEvent) {
             String className = ((ClassPrepareEvent) event).referenceType().name();
             Tracker.info("=========== ClassPrepareEvent -> " + className);
@@ -384,13 +431,19 @@ public class JavaDebugger extends Debugger implements Runnable {
                     setBreakpoint(breakpoint);
                 }
             });
+            return true;
         } else if (event instanceof MethodEntryEvent) {
             Method method = ((MethodEntryEvent) event).method();
             Tracker.info("MethodEntryEvent: " + method.name());
+            return true;
         } else if (event instanceof MethodExitEvent) {
             Method method = ((MethodExitEvent) event).method();
             Tracker.info("MethodExitEvent: " + method.name());
+            return true;
         } else if (event instanceof BreakpointEvent) {
+            List<com.furongsoft.ide.debugger.entities.Location> locations = new ArrayList<>();
+            List<Variable> variables = new ArrayList<>();
+
             BreakpointEvent breakpointEvent = (BreakpointEvent) event;
             ThreadReference threadReference = breakpointEvent.thread();
             List<StackFrame> frames = threadReference.frames();
@@ -398,16 +451,15 @@ public class JavaDebugger extends Debugger implements Runnable {
                 Location location = frame.location();
                 Method method = location.method();
                 Tracker.info(String.format("=========== frame -> %s (%s:%s)", method.name(), location.sourcePath(), location.lineNumber()));
+                locations.add(new com.furongsoft.ide.debugger.entities.Location(location.sourcePath(), location.lineNumber(), method.name()));
             }
 
             StackFrame stackFrame = threadReference.frame(0);
             List<LocalVariable> localVariables = stackFrame.visibleVariables();
-            // Method method = stackFrame.location().method();
-            // List<LocalVariable> localVariables = method.variables();
-
             for (LocalVariable localVariable : localVariables) {
                 Value value = stackFrame.getValue(localVariable);
                 Tracker.info(String.format("=========== local -> %s %s = %s", value.type(), localVariable.name(), value));
+                variables.add(new Variable(VariableType.local, value.type().name(), localVariable.name(), value));
             }
 
             Tracker.info(stackFrame.thisObject().type().name());
@@ -415,7 +467,59 @@ public class JavaDebugger extends Debugger implements Runnable {
             Map<Field, Value> map = stackFrame.thisObject().getValues(fields);
             for (Map.Entry<Field, Value> entry : map.entrySet()) {
                 Tracker.info(String.format("=========== member -> %s %s = %s", entry.getValue().type(), entry.getKey().name(), entry.getValue()));
+                variables.add(new Variable(VariableType.member, entry.getValue().type().name(), entry.getKey().name(), entry.getValue()));
             }
+
+            synchronized (this) {
+                this.debuggerState = DebuggerState.Breaking;
+                this.location = locations.get(0);
+                this.stack = new Stack(locations);
+                this.variables = variables;
+                this.threadReference = threadReference;
+            }
+
+            return false;
+        } else if (event instanceof StepEvent) {
+            List<com.furongsoft.ide.debugger.entities.Location> locations = new ArrayList<>();
+            List<Variable> variables = new ArrayList<>();
+
+            StepEvent stepEvent = (StepEvent) event;
+            ThreadReference threadReference = stepEvent.thread();
+            List<StackFrame> frames = threadReference.frames();
+            for (StackFrame frame : frames) {
+                Location location = frame.location();
+                Method method = location.method();
+                Tracker.info(String.format("=========== frame -> %s (%s:%s)", method.name(), location.sourcePath(), location.lineNumber()));
+                locations.add(new com.furongsoft.ide.debugger.entities.Location(location.sourcePath(), location.lineNumber(), method.name()));
+            }
+
+            StackFrame stackFrame = threadReference.frame(0);
+            List<LocalVariable> localVariables = stackFrame.visibleVariables();
+            for (LocalVariable localVariable : localVariables) {
+                Value value = stackFrame.getValue(localVariable);
+                Tracker.info(String.format("=========== local -> %s %s = %s", value.type(), localVariable.name(), value));
+                variables.add(new Variable(VariableType.local, value.type().name(), localVariable.name(), value));
+            }
+
+            Tracker.info(stackFrame.thisObject().type().name());
+            List<Field> fields = stackFrame.thisObject().referenceType().allFields();
+            Map<Field, Value> map = stackFrame.thisObject().getValues(fields);
+            for (Map.Entry<Field, Value> entry : map.entrySet()) {
+                Tracker.info(String.format("=========== member -> %s %s = %s", entry.getValue().type(), entry.getKey().name(), entry.getValue()));
+                variables.add(new Variable(VariableType.member, entry.getValue().type().name(), entry.getKey().name(), entry.getValue()));
+            }
+
+            synchronized (this) {
+                this.debuggerState = DebuggerState.Breaking;
+                this.location = locations.get(0);
+                this.stack = new Stack(locations);
+                this.variables = variables;
+                this.threadReference = threadReference;
+            }
+
+            return false;
         }
+
+        return true;
     }
 }
