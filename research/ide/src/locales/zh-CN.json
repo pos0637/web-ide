@@ -1,0 +1,12 @@
+{
+    "components.select.empty_text": "暂无数据,请刷新重试!",
+    "components.select.reload": "刷新",
+    "components.table.empty_text": "暂无数据,请刷新重试!",
+    "components.table.reload": "刷新",
+    "components.table.loading": "正在加载，请稍等...",
+    "components.table.actionbar.title": "操作",
+    "components.table.actionbar.view": "查看",
+    "components.table.actionbar.edit": "编辑",
+    "components.table.actionbar.delete": "删除",
+    "mainFrame.loading.tip": "正在加载，请稍等..."
+}
