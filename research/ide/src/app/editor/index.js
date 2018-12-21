@@ -1,6 +1,6 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Tabs, List } from 'antd';
+import { Tabs, List, Row, Col } from 'antd';
 import { Controlled as CodeMirror } from 'react-codemirror2';
 import BaseComponent from '~/components/baseComponent';
 import Button from '~/components/button';
@@ -11,6 +11,7 @@ require('codemirror/theme/material.css');
 require('codemirror/theme/neat.css');
 require('codemirror/mode/xml/xml.js');
 require('codemirror/mode/javascript/javascript.js');
+require('codemirror/addon/selection/active-line.js');
 
 /**
  * 编辑器视图
@@ -26,7 +27,10 @@ export default class Editor extends BaseComponent {
 
     state = {
         className: 'Test',
-        code1: '123\n12312',
+        code1: '',
+        state: 0,
+        stack: [],
+        variables: [],
         output: [],
         breakpoints: []
     }
@@ -34,21 +38,56 @@ export default class Editor extends BaseComponent {
     componentDidMount() {
         super.componentDidMount();
 
-        getCode('Test.java', code => {
-            this.setState({ code1: code });
-        });
-
         this.timer1 = setInterval(() => {
             getInformation(information => {
                 console.log(information);
 
+                getCode('Test.java', code => {
+                    this.setState({ code1: code });
+                });
+
+                this.setState({ state: information.debuggerState });
+
+                const marks = this.cm.getAllMarks();
+                marks && marks.forEach(mark => mark.clear());
+                if (information.location) {
+                    const info = this.cm.lineInfo(information.location.lineNumber - 1);
+                    this.cm.markText({ line: information.location.lineNumber - 1, ch: 0 }, { line: information.location.lineNumber - 1, ch: info.text.length }, { className: 'styled-background' });
+                }
+
+                if ((information.stack) && (information.stack.locations)) {
+                    const stack = [];
+                    information.stack.locations.forEach(location => {
+                        stack.push(`${location.path}:${location.lineNumber}, ${location.method}()`);
+                    });
+                    this.setState({ stack: stack });
+                }
+                else {
+                    this.setState({ stack: [] });
+                }
+
+                if (information.variables) {
+                    const variables = [];
+                    information.variables.forEach(variable => {
+                        variables.push(`[${variable.type}] ${variable.className} ${variable.name}, value: ${variable.value}`);
+                    });
+                    this.setState({ variables: variables });
+                }
+                else {
+                    this.setState({ variables: [] });
+                }
+
                 if (information.breakpoints) {
                     const breakpoints = [];
                     information.breakpoints.forEach(breakpoint => {
-                        breakpoints.push(`${breakpoint.className}:${breakpoint.line + 1}, enabled: ${breakpoint.enabled}, active: ${breakpoint.active}`);
+                        breakpoints.push(`${breakpoint.className}:${breakpoint.lineNumber}, enabled: ${breakpoint.enabled}, active: ${breakpoint.active}`);
                     });
                     this._updateBreakpoint(information.breakpoints);
                     this.setState({ breakpoints: breakpoints });
+                }
+                else {
+                    this._updateBreakpoint(null);
+                    this.setState({ breakpoints: [] });
                 }
             });
         }, 2000);
@@ -73,6 +112,8 @@ export default class Editor extends BaseComponent {
             theme: 'material',
             readOnly: true,
             lineNumbers: true,
+            styleActiveLine: true,
+            styleSelectedText: true,
             gutters: ['CodeMirror-linenumbers', 'breakpoints']
         };
 
@@ -81,6 +122,7 @@ export default class Editor extends BaseComponent {
                 <div>
                     <Button
                         icon="play-circle"
+                        disabled={this.state.state !== 'Idle'}
                         url="/api/v1/debugger/start"
                         method="get"
                         params={{
@@ -92,47 +134,64 @@ export default class Editor extends BaseComponent {
                         resolve={data => {
                             console.log(data);
                         }}
-                    />
+                    >
+                        运行
+                    </Button>
                     <Button
                         icon="stop"
+                        disabled={this.state.state === 'Idle'}
                         url="/api/v1/debugger/stop"
                         method="get"
                         resolve={data => {
                             console.log(data);
                         }}
-                    />
+                    >
+                        停止
+                    </Button>
                     <Button
                         icon="forward"
+                        disabled={this.state.state !== 'Breaking'}
                         url="/api/v1/debugger/resume"
                         method="get"
                         resolve={data => {
                             console.log(data);
                         }}
-                    />
+                    >
+                        继续
+                    </Button>
                     <Button
                         icon="step-forward"
+                        disabled={this.state.state !== 'Breaking'}
                         url="/api/v1/debugger/stepOver"
                         method="get"
                         resolve={data => {
                             console.log(data);
                         }}
-                    />
+                    >
+                        单步
+                    </Button>
                     <Button
                         icon="arrow-down"
+                        disabled={this.state.state !== 'Breaking'}
                         url="/api/v1/debugger/stepInto"
                         method="get"
                         resolve={data => {
                             console.log(data);
                         }}
-                    />
+                    >
+                        进入
+                    </Button>
                     <Button
                         icon="arrow-up"
+                        disabled={this.state.state !== 'Breaking'}
                         url="/api/v1/debugger/stepOut"
                         method="get"
                         resolve={data => {
                             console.log(data);
                         }}
-                    />
+                    >
+                        退出
+                    </Button>
                 </div>
                 <div style={{ width: '100%', height: '100%' }}>
                     <div style={{ marginTop: '10px' }}>
@@ -156,7 +215,26 @@ export default class Editor extends BaseComponent {
                     </div>
                     <div style={{ marginTop: '10px' }}>
                         <Tabs type="card" defaultActiveKey="1">
-                            <Tabs.TabPane tab="Debug" key="1" />
+                            <Tabs.TabPane tab="Debug" key="1">
+                                <Row>
+                                    <Col span={4}>
+                                        <List
+                                            bordered
+                                            dataSource={this.state.stack}
+                                            header={<div>Call stack</div>}
+                                            renderItem={item => (<List.Item>{item}</List.Item>)}
+                                        />
+                                    </Col>
+                                    <Col span={4}>
+                                        <List
+                                            bordered
+                                            dataSource={this.state.variables}
+                                            header={<div>Variables</div>}
+                                            renderItem={item => (<List.Item>{item}</List.Item>)}
+                                        />
+                                    </Col>
+                                </Row>
+                            </Tabs.TabPane>
                             <Tabs.TabPane tab="Console" key="2">
                                 <List
                                     bordered
@@ -186,18 +264,18 @@ export default class Editor extends BaseComponent {
     _updateBreakpoint(breakpoints) {
         if (this.cm) {
             this.cm.clearGutter('breakpoints');
-            breakpoints.forEach((breakpoint) => this.cm.setGutterMarker(breakpoint.line, 'breakpoints', this._makeMarker()));
+            breakpoints && breakpoints.forEach((breakpoint) => this.cm.setGutterMarker(breakpoint.lineNumber - 1, 'breakpoints', this._makeMarker()));
         }
     }
 
     _addBreakpoint(cm, n) {
-        addBreakpoint(this.state.className, n, () => {
+        addBreakpoint(this.state.className, n + 1, () => {
             cm.setGutterMarker(n, 'breakpoints', this._makeMarker());
         });
     }
 
     _deleteBreakpoint(cm, n) {
-        deleteBreakpoint(this.state.className, n, () => {
+        deleteBreakpoint(this.state.className, n + 1, () => {
             cm.setGutterMarker(n, 'breakpoints', null);
         });
     }
