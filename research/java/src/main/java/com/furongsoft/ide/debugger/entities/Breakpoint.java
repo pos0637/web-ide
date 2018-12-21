@@ -21,7 +21,7 @@ public class Breakpoint {
     /**
      * 行号
      */
-    private int line;
+    private int lineNumber;
 
     /**
      * 是否启用
@@ -39,6 +39,6 @@ public class Breakpoint {
      * @return 键值
      */
     public String key() {
-        return String.format("%s:%d", className, line);
+        return String.format("%s:%d", className, lineNumber);
     }
 }

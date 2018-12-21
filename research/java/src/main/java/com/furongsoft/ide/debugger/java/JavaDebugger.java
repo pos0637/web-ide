@@ -231,6 +231,11 @@ public class JavaDebugger extends Debugger implements Runnable {
     public boolean stop() {
         Thread thread;
         synchronized (this) {
+            if (targetProcess != null) {
+                targetProcess.stop();
+                targetProcess = null;
+            }
+
             runFlag = false;
             thread = this.thread;
         }
@@ -257,15 +262,20 @@ public class JavaDebugger extends Debugger implements Runnable {
                 vm = null;
             }
 
-            if (targetProcess != null) {
-                targetProcess.stop();
-                targetProcess = null;
-            }
-
             debuggerState = DebuggerState.Idle;
             threadReference = null;
             stepRequestMap.clear();
             breakpointRequests.clear();
+            breakpoints.values().forEach(breakpoint -> breakpoint.setActive(false));
+            location = null;
+            if (stack != null) {
+                stack.clear();
+                stack = null;
+            }
+            if (variables != null) {
+                variables.clear();
+                variables = null;
+            }
         }
 
         return true;
@@ -401,6 +411,16 @@ public class JavaDebugger extends Debugger implements Runnable {
             threadReference = null;
             stepRequestMap.clear();
             breakpointRequests.clear();
+            breakpoints.values().forEach(breakpoint -> breakpoint.setActive(false));
+            location = null;
+            if (stack != null) {
+                stack.clear();
+                stack = null;
+            }
+            if (variables != null) {
+                variables.clear();
+                variables = null;
+            }
         }
     }
 
@@ -482,7 +502,7 @@ public class JavaDebugger extends Debugger implements Runnable {
         ClassType clazz = (ClassType) vm.classesByName(breakpoint.getClassName()).get(0);
 
         try {
-            Location location = clazz.locationsOfLine(breakpoint.getLine()).get(0);
+            Location location = clazz.locationsOfLine(breakpoint.getLineNumber()).get(0);
             BreakpointRequest breakpointRequest = eventRequestManager.createBreakpointRequest(location);
             breakpointRequest.setSuspendPolicy(EventRequest.SUSPEND_EVENT_THREAD);
             breakpointRequest.enable();

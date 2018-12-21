@@ -21,4 +21,13 @@ public class Stack {
      * 调用栈
      */
     List<Location> locations;
+
+    /**
+     * 清空
+     */
+    public void clear() {
+        if (locations != null) {
+            locations.clear();
+        }
+    }
 }
