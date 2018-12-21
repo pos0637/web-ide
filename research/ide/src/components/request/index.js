@@ -7,7 +7,7 @@ const Request = axios.create({
     headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache', 'Pragma': 'no-cache', 'Expires': 0 }
 });
 
-const Mock = (process.env.NODE_ENV === 'development') ? new MockAdapter(Request, { delayResponse: 100 }) : null;
+const Mock = (process.env.NODE_ENV === 'development') ? new MockAdapter(Request, { delayResponse: 500 }) : null;
 
 /**
  * 获取请求响应数据
@@ -18,11 +18,28 @@ const Mock = (process.env.NODE_ENV === 'development') ? new MockAdapter(Request,
  */
 export function getResponseData(response) {
     if ((!response) || (!response.data)) {
-        return { data: null, message: null };
-    } else if ((response.data.code !== 200) || (!response.data.data)) {
-        return { data: null, message: response.data.message };
+        return { succ: false, data: null, message: null };
+    } else if ((response.data.code !== 200) || (typeof response.data.data === 'undefined') || (response.data.data === null)) {
+        return { succ: false, data: null, message: response.data.message };
     } else {
-        return { data: response.data.data, message: null };
+        return { succ: true, data: response.data.data, message: null };
+    }
+}
+
+/**
+ * 获取请求响应数据
+ *
+ * @export
+ * @param {*} response 响应信息
+ * @returns 响应数据
+ */
+export function getResponseDataWithoutCheckData(response) {
+    if ((!response) || (!response.data)) {
+        return { succ: false, data: null, message: null };
+    } else if (response.data.code !== 200) {
+        return { succ: false, data: null, message: response.data.message };
+    } else {
+        return { succ: true, data: response.data.data, message: null };
     }
 }
 
@@ -45,8 +62,8 @@ export function request(url, method, parameters, resolve, reject) {
 
     if (method.toLowerCase() === 'get') {
         Request.get(url, { params: params }).then(response => {
-            const { data, message } = getResponseData(response);
-            if (!data) {
+            const { succ, data, message } = getResponseData(response);
+            if (!succ) {
                 onError(message);
             } else {
                 resolve && resolve(data);
@@ -57,8 +74,8 @@ export function request(url, method, parameters, resolve, reject) {
         });
     } else if (method.toLowerCase() === 'post') {
         Request.post(url, params).then(response => {
-            const { data, message } = getResponseData(response);
-            if (!data) {
+            const { succ, data, message } = getResponseDataWithoutCheckData(response);
+            if (!succ) {
                 onError(message);
             } else {
                 resolve && resolve(data);
@@ -69,8 +86,8 @@ export function request(url, method, parameters, resolve, reject) {
         });
     } else if (method.toLowerCase() === 'put') {
         Request.put(url, params).then(response => {
-            const { data, message } = getResponseData(response);
-            if (!data) {
+            const { succ, data, message } = getResponseDataWithoutCheckData(response);
+            if (!succ) {
                 onError(message);
             } else {
                 resolve && resolve(data);
@@ -81,8 +98,8 @@ export function request(url, method, parameters, resolve, reject) {
         });
     } else if (method.toLowerCase() === 'delete') {
         Request.delete(url, params).then(response => {
-            const { data, message } = getResponseData(response);
-            if (!data) {
+            const { succ, data, message } = getResponseDataWithoutCheckData(response);
+            if (!succ) {
                 onError(message);
             } else {
                 resolve && resolve(data);

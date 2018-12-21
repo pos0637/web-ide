@@ -1,1 +1,1 @@
-import '~/mock/v1/board';
+import '~/mock/v1/debugger';

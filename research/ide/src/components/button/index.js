@@ -63,6 +63,7 @@ export default class Button extends BaseComponent {
             return;
         }
 
+        this.setState({ loading: true });
         request(this.props.url, this.props.method, this.props.params, data => {
             this.setState({ loading: false });
             this.props.resolve && this.props.resolve(data);

@@ -6,7 +6,7 @@
   "scripts": {
     "dll": "npx webpack --mode production --config webpack.config.dll.js",
     "build": "npx webpack --mode production --config webpack.config.prod.js",
-    "start": "npx webpack-dev-server --mode development --config webpack.config.dev.js",
+    "start": "npx webpack-dev-server --mode production --config webpack.config.dev.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "analyz": "npx webpack --config webpack.config.dev.js --progress --display-reasons --colors --display-modules --profile --json > stats.json && webpack-bundle-analyzer stats.json",
     "package": "electron-packager ./ bms --overwrite --app-version=1.0.0 --platform=win32 --arch=x64 --ignore=node_modules --ignore=src --ignore=public --ignore=release --out=./release/bms electron-version=1.4.13"
