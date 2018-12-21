@@ -239,6 +239,7 @@ export default class Editor extends BaseComponent {
                                 <List
                                     bordered
                                     dataSource={this.state.output}
+                                    header={<div><Button icon="delete" onClick={() => this.setState({ output: [] })}>清空</Button></div>}
                                     renderItem={item => (<List.Item>{item}</List.Item>)}
                                 />
                             </Tabs.TabPane>

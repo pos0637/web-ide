@@ -29,7 +29,7 @@ export default class Button extends BaseComponent {
         resolve: null,
         reject: null,
         onClick: null,
-        waitForComplete: true
+        waitForComplete: false
     }
 
     state = {
