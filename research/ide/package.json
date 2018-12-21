@@ -7,6 +7,7 @@
     "dll": "npx webpack --mode production --config webpack.config.dll.js",
     "build": "npx webpack --mode production --config webpack.config.prod.js",
     "start": "npx webpack-dev-server --mode production --config webpack.config.dev.js",
+    "server": "npx http-server ./dist -p 8000 -g",
     "test": "echo \"Error: no test specified\" && exit 1",
     "analyz": "npx webpack --config webpack.config.dev.js --progress --display-reasons --colors --display-modules --profile --json > stats.json && webpack-bundle-analyzer stats.json",
     "package": "electron-packager ./ bms --overwrite --app-version=1.0.0 --platform=win32 --arch=x64 --ignore=node_modules --ignore=src --ignore=public --ignore=release --out=./release/bms electron-version=1.4.13"
@@ -40,6 +41,7 @@
     "eslint-plugin-react": "^7.11.1",
     "glob": "^7.1.3",
     "html-webpack-plugin": "^3.2.0",
+    "http-server": "^0.11.1",
     "less": "^3.8.1",
     "less-loader": "^4.1.0",
     "mockjs": "^1.0.1-beta3",
