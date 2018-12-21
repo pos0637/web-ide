@@ -6,7 +6,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * 进程执行器
@@ -19,16 +21,17 @@ public class ProcessExecutor implements Runnable {
     private boolean runFlag;
     private String command;
     private int maxLines;
-    private ConcurrentLinkedQueue<String> queue = new ConcurrentLinkedQueue<>();
+    private List<String> queue = new LinkedList<>();
 
     /**
      * 启动进程
      *
-     * @param command 命令
+     * @param command  命令
+     * @param queue    输出队列
      * @param maxLines 最大输出行数
      * @return 进程执行器
      */
-    public ProcessExecutor start(String command, int maxLines) {
+    public ProcessExecutor start(String command, List<String> queue, int maxLines) {
         stop();
 
         synchronized (this) {
@@ -37,6 +40,7 @@ public class ProcessExecutor implements Runnable {
             }
 
             this.command = command;
+            this.queue = queue;
             this.maxLines = maxLines;
 
             runFlag = true;
@@ -78,15 +82,6 @@ public class ProcessExecutor implements Runnable {
         }
 
         return true;
-    }
-
-    /**
-     * 获取输出内容
-     *
-     * @return 输出内容
-     */
-    public String[] getOutput() {
-        return (String[]) queue.toArray();
     }
 
     @Override
@@ -131,9 +126,11 @@ public class ProcessExecutor implements Runnable {
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
             String line;
             while (runFlag && ((line = reader.readLine()) != null)) {
-                queue.add(line);
-                if (queue.size() > maxLines) {
-                    queue.poll();
+                synchronized (queue) {
+                    queue.add(line);
+                    if (queue.size() > maxLines) {
+                        queue.remove(0);
+                    }
                 }
             }
         } catch (IOException e) {

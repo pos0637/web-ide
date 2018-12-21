@@ -3,19 +3,36 @@ package com.furongsoft.ide.debugger.controllers;
 import com.furongsoft.core.entities.RestResponse;
 import com.furongsoft.ide.debugger.core.IDebugger;
 import com.furongsoft.ide.debugger.entities.Breakpoint;
+import com.furongsoft.ide.debugger.entities.Information;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/v1/debugger")
+@CrossOrigin
 public class DebuggerController {
     private final IDebugger debugger;
 
     @Autowired
     public DebuggerController(IDebugger debugger) {
         this.debugger = debugger;
+    }
+
+    @GetMapping("/codes")
+    public RestResponse getCode(@RequestParam String path) {
+        return new RestResponse(HttpStatus.OK, null, debugger.getCode(path));
+    }
+
+    @GetMapping("/information")
+    public RestResponse getInformation() {
+        return new RestResponse(HttpStatus.OK, null, new Information(
+                debugger.getState(),
+                debugger.getBreakpoints(),
+                debugger.getLocation(),
+                debugger.getStack(),
+                debugger.getVariables()
+        ));
     }
 
     @GetMapping("/state")
@@ -43,6 +60,11 @@ public class DebuggerController {
         return new RestResponse(HttpStatus.OK, null, debugger.getBreakpoints());
     }
 
+    @GetMapping("/console")
+    public RestResponse getConsole() {
+        return new RestResponse(HttpStatus.OK, null, debugger.getConsole());
+    }
+
     @PostMapping("/breakpoints")
     public RestResponse addBreakpoint(@RequestBody Breakpoint breakpoint) {
         boolean ret = debugger.addBreakpoint(breakpoint);
@@ -50,7 +72,7 @@ public class DebuggerController {
     }
 
     @PostMapping("/breakpoints/delete")
-    public RestResponse deleteBreakpoint(@RequestParam Breakpoint breakpoint) {
+    public RestResponse deleteBreakpoint(@RequestBody Breakpoint breakpoint) {
         boolean ret = debugger.deleteBreakpoint(breakpoint);
         return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
     }
@@ -61,19 +83,19 @@ public class DebuggerController {
         return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    @PostMapping("/start")
+    @GetMapping("/start")
     public RestResponse start(@RequestParam String script, @RequestParam String arguments) {
         boolean ret = debugger.start("Test", "{\"-classpath\": \"./demos/demo1\"}");
         return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    @PostMapping("/stop")
+    @GetMapping("/stop")
     public RestResponse stop() {
         boolean ret = debugger.stop();
         return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    @PostMapping("/suspend")
+    @GetMapping("/suspend")
     public RestResponse suspend() {
         boolean ret = debugger.suspend();
         return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
@@ -85,7 +107,7 @@ public class DebuggerController {
         return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    @PostMapping("/stepInto")
+    @GetMapping("/stepInto")
     public RestResponse stepInto() {
         boolean ret = debugger.stepInto();
         return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
@@ -97,7 +119,7 @@ public class DebuggerController {
         return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    @PostMapping("/stepOver")
+    @GetMapping("/stepOver")
     public RestResponse stepOver() {
         boolean ret = debugger.stepOver();
         return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);

@@ -2,6 +2,7 @@ package com.furongsoft.ide.debugger.core;
 
 import com.furongsoft.ide.debugger.entities.*;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -20,7 +21,7 @@ public interface IDebugger {
      *
      * @return 断点列表
      */
-    Breakpoint[] getBreakpoints();
+    Collection<Breakpoint> getBreakpoints();
 
     /**
      * 添加断点
@@ -63,6 +64,14 @@ public interface IDebugger {
     boolean deleteAllBreakpoint();
 
     /**
+     * 获取源代码
+     *
+     * @param path 源代码路径
+     * @return 源代码
+     */
+    String getCode(String path);
+
+    /**
      * 获取状态
      *
      * @return 状态
@@ -88,7 +97,14 @@ public interface IDebugger {
      *
      * @return 变量列表
      */
-    Variable[] getVariables();
+    Collection<Variable> getVariables();
+
+    /**
+     * 获取控制台输出
+     *
+     * @return 控制台输出
+     */
+    Collection<String> getConsole();
 
     /**
      * 开始调试

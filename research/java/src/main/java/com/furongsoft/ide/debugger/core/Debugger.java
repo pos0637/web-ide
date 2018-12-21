@@ -2,6 +2,7 @@ package com.furongsoft.ide.debugger.core;
 
 import com.furongsoft.ide.debugger.entities.*;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -37,8 +38,8 @@ public abstract class Debugger implements IDebugger {
     protected List<Variable> variables;
 
     @Override
-    public synchronized Breakpoint[] getBreakpoints() {
-        return (Breakpoint[]) breakpoints.values().toArray();
+    public synchronized Collection<Breakpoint> getBreakpoints() {
+        return ((breakpoints != null) && !breakpoints.isEmpty()) ? breakpoints.values() : null;
     }
 
     @Override
@@ -66,7 +67,7 @@ public abstract class Debugger implements IDebugger {
     @Override
     public synchronized boolean deleteBreakpoint(Breakpoint breakpoint) {
         if (breakpoints.containsKey(breakpoint.key())) {
-            breakpoints.remove(breakpoint);
+            breakpoints.remove(breakpoint.key());
             return true;
         } else {
             return false;
@@ -95,7 +96,7 @@ public abstract class Debugger implements IDebugger {
     }
 
     @Override
-    public synchronized Variable[] getVariables() {
-        return (Variable[]) variables.toArray();
+    public synchronized Collection<Variable> getVariables() {
+        return variables;
     }
 }

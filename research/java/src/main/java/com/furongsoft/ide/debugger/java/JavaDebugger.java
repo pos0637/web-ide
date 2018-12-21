@@ -4,9 +4,10 @@ import com.alibaba.fastjson.JSONObject;
 import com.furongsoft.core.misc.StringUtils;
 import com.furongsoft.core.misc.Tracker;
 import com.furongsoft.ide.debugger.core.Debugger;
+import com.furongsoft.ide.debugger.entities.Stack;
 import com.furongsoft.ide.debugger.entities.*;
-import com.sun.jdi.*;
 import com.sun.jdi.Location;
+import com.sun.jdi.*;
 import com.sun.jdi.connect.AttachingConnector;
 import com.sun.jdi.connect.Connector;
 import com.sun.jdi.connect.IllegalConnectorArgumentsException;
@@ -15,10 +16,11 @@ import com.sun.jdi.event.*;
 import com.sun.jdi.request.*;
 import org.springframework.stereotype.Component;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -72,6 +74,10 @@ public class JavaDebugger extends Debugger implements Runnable {
      */
     private ConcurrentHashMap<ThreadReference, StepRequest> stepRequestMap = new ConcurrentHashMap<>();
 
+    /**
+     * 输出队列
+     */
+    private final List<String> output = new LinkedList<>();
 
     @Override
     public void dispose() {
@@ -94,16 +100,10 @@ public class JavaDebugger extends Debugger implements Runnable {
         }
 
         if (!breakpointRequests.containsKey(breakpoint.key())) {
-            return false;
+            return true;
         }
 
-        if (vm != null) {
-            EventRequestManager eventRequestManager = vm.eventRequestManager();
-            eventRequestManager.deleteEventRequest(breakpointRequests.get(breakpoint.key()));
-            breakpointRequests.remove(breakpoint.key());
-        }
-
-        return true;
+        return clearBreakpoint(breakpoint);
     }
 
     @Override
@@ -119,6 +119,48 @@ public class JavaDebugger extends Debugger implements Runnable {
         }
 
         return true;
+    }
+
+    @Override
+    public synchronized String getCode(String path) {
+        File file = new File("./demos/demo1/" + path);
+        if (!file.exists()) {
+            return null;
+        }
+
+        BufferedReader reader = null;
+        StringBuilder sb = new StringBuilder();
+
+        try {
+            reader = new BufferedReader(new FileReader(file));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line);
+                sb.append('\n');
+            }
+
+            return sb.toString();
+        } catch (IOException e) {
+            Tracker.error(e);
+            return null;
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (IOException e) {
+                    Tracker.error(e);
+                }
+            }
+        }
+    }
+
+    @Override
+    public Collection<String> getConsole() {
+        synchronized (output) {
+            Collection<String> ret = new ArrayList<>(output);
+            output.clear();
+            return ret;
+        }
     }
 
     @Override
@@ -139,7 +181,7 @@ public class JavaDebugger extends Debugger implements Runnable {
 
             String command = String.format("java %s -Xdebug -Xrunjdwp:transport=dt_socket,suspend=y,server=y,address=%s %s", sb.toString(), PORT, script);
 
-            targetProcess = new ProcessExecutor().start(command, MAX_LINES);
+            targetProcess = new ProcessExecutor().start(command, output, MAX_LINES);
             if (targetProcess == null) {
                 return false;
             }
@@ -206,8 +248,12 @@ public class JavaDebugger extends Debugger implements Runnable {
             this.thread = null;
 
             if (vm != null) {
-                vm.exit(0);
-                vm.dispose();
+                try {
+                    vm.exit(0);
+                    vm.dispose();
+                } catch (Exception e) {
+                    Tracker.error(e);
+                }
                 vm = null;
             }
 
@@ -219,6 +265,7 @@ public class JavaDebugger extends Debugger implements Runnable {
             debuggerState = DebuggerState.Idle;
             threadReference = null;
             stepRequestMap.clear();
+            breakpointRequests.clear();
         }
 
         return true;
@@ -333,7 +380,7 @@ public class JavaDebugger extends Debugger implements Runnable {
 
         synchronized (this) {
             runFlag = false;
-            thread = null;
+            this.thread = null;
 
             if (vm != null) {
                 try {
@@ -349,6 +396,11 @@ public class JavaDebugger extends Debugger implements Runnable {
                 targetProcess.stop();
                 targetProcess = null;
             }
+
+            debuggerState = DebuggerState.Idle;
+            threadReference = null;
+            stepRequestMap.clear();
+            breakpointRequests.clear();
         }
     }
 
@@ -446,6 +498,28 @@ public class JavaDebugger extends Debugger implements Runnable {
     }
 
     /**
+     * 清空断点
+     *
+     * @param breakpoint 断点
+     * @return 是否成功
+     */
+    private synchronized boolean clearBreakpoint(Breakpoint breakpoint) {
+        if (vm == null) {
+            return false;
+        }
+
+        if (!breakpointRequests.containsKey(breakpoint.key())) {
+            return false;
+        }
+
+        EventRequestManager eventRequestManager = vm.eventRequestManager();
+        eventRequestManager.deleteEventRequest(breakpointRequests.get(breakpoint.key()));
+        breakpointRequests.remove(breakpoint.key());
+
+        return true;
+    }
+
+    /**
      * 处理事件
      *
      * @param event 事件
@@ -494,7 +568,7 @@ public class JavaDebugger extends Debugger implements Runnable {
             for (LocalVariable localVariable : localVariables) {
                 Value value = stackFrame.getValue(localVariable);
                 Tracker.info(String.format("=========== local -> %s %s = %s", value.type(), localVariable.name(), value));
-                variables.add(new Variable(VariableType.local, value.type().name(), localVariable.name(), value));
+                variables.add(new Variable(VariableType.local, value.type().name(), localVariable.name(), value.toString()));
             }
 
             Tracker.info(stackFrame.thisObject().type().name());
@@ -502,7 +576,7 @@ public class JavaDebugger extends Debugger implements Runnable {
             Map<Field, Value> map = stackFrame.thisObject().getValues(fields);
             for (Map.Entry<Field, Value> entry : map.entrySet()) {
                 Tracker.info(String.format("=========== member -> %s %s = %s", entry.getValue().type(), entry.getKey().name(), entry.getValue()));
-                variables.add(new Variable(VariableType.member, entry.getValue().type().name(), entry.getKey().name(), entry.getValue()));
+                variables.add(new Variable(VariableType.member, entry.getValue().type().name(), entry.getKey().name(), entry.getValue().toString()));
             }
 
             synchronized (this) {
@@ -533,7 +607,7 @@ public class JavaDebugger extends Debugger implements Runnable {
             for (LocalVariable localVariable : localVariables) {
                 Value value = stackFrame.getValue(localVariable);
                 Tracker.info(String.format("=========== local -> %s %s = %s", value.type(), localVariable.name(), value));
-                variables.add(new Variable(VariableType.local, value.type().name(), localVariable.name(), value));
+                variables.add(new Variable(VariableType.local, value.type().name(), localVariable.name(), value.toString()));
             }
 
             Tracker.info(stackFrame.thisObject().type().name());
@@ -541,7 +615,7 @@ public class JavaDebugger extends Debugger implements Runnable {
             Map<Field, Value> map = stackFrame.thisObject().getValues(fields);
             for (Map.Entry<Field, Value> entry : map.entrySet()) {
                 Tracker.info(String.format("=========== member -> %s %s = %s", entry.getValue().type(), entry.getKey().name(), entry.getValue()));
-                variables.add(new Variable(VariableType.member, entry.getValue().type().name(), entry.getKey().name(), entry.getValue()));
+                variables.add(new Variable(VariableType.member, entry.getValue().type().name(), entry.getKey().name(), entry.getValue().toString()));
             }
 
             synchronized (this) {

@@ -33,5 +33,5 @@ public class Variable {
     /**
      * 值
      */
-    private Object value;
+    private String value;
 }
