@@ -14,12 +14,17 @@ import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.Transport;
 import com.sun.jdi.event.*;
 import com.sun.jdi.request.*;
+import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -38,46 +43,38 @@ public class JavaDebugger extends Debugger implements Runnable {
     private static final String PORT = "5000";
     private static final String DT_SOCKET = "dt_socket";
     private static final int MAX_LINES = 1000;
-
-    /**
-     * 虚拟机
-     */
-    private VirtualMachine vm;
-
-    /**
-     * 断点列表
-     */
-    private ConcurrentHashMap<String, BreakpointRequest> breakpointRequests = new ConcurrentHashMap<>();
-
-    /**
-     * 虚拟机事件处理线程
-     */
-    private Thread thread;
-
-    /**
-     * 运行标志
-     */
-    private boolean runFlag;
-
-    /**
-     * 目标进程
-     */
-    private ProcessExecutor targetProcess;
-
-    /**
-     * 当前调试线程
-     */
-    private ThreadReference threadReference;
-
-    /**
-     * 调试请求列表
-     */
-    private ConcurrentHashMap<ThreadReference, StepRequest> stepRequestMap = new ConcurrentHashMap<>();
-
     /**
      * 输出队列
      */
     private final List<String> output = new LinkedList<>();
+    /**
+     * 虚拟机
+     */
+    private VirtualMachine vm;
+    /**
+     * 断点列表
+     */
+    private ConcurrentHashMap<String, BreakpointRequest> breakpointRequests = new ConcurrentHashMap<>();
+    /**
+     * 虚拟机事件处理线程
+     */
+    private Thread thread;
+    /**
+     * 运行标志
+     */
+    private boolean runFlag;
+    /**
+     * 目标进程
+     */
+    private ProcessExecutor targetProcess;
+    /**
+     * 当前调试线程
+     */
+    private ThreadReference threadReference;
+    /**
+     * 调试请求列表
+     */
+    private ConcurrentHashMap<ThreadReference, StepRequest> stepRequestMap = new ConcurrentHashMap<>();
 
     @Override
     public void dispose() {
@@ -121,8 +118,7 @@ public class JavaDebugger extends Debugger implements Runnable {
         return true;
     }
 
-    @Override
-    public synchronized String getCode(String path) {
+    public synchronized String getCode2(String path) {
         File file = new File("./demos/demo1/" + path);
         if (!file.exists()) {
             return null;
@@ -132,7 +128,7 @@ public class JavaDebugger extends Debugger implements Runnable {
         StringBuilder sb = new StringBuilder();
 
         try {
-            reader = new BufferedReader(new FileReader(file));
+            reader = new BufferedReader(new FileReader(file, Charset.forName("UTF-8")));
             String line;
             while ((line = reader.readLine()) != null) {
                 sb.append(line);
@@ -152,6 +148,31 @@ public class JavaDebugger extends Debugger implements Runnable {
                 }
             }
         }
+    }
+
+    @Override
+    public synchronized String getCode(String path) {
+        String code = getCode2(path);
+
+        final ASTParser parser = ASTParser.newParser(AST.JLS11);
+        parser.setResolveBindings(true);
+        parser.setBindingsRecovery(true);
+        parser.setStatementsRecovery(true);
+        parser.setSource(code.toCharArray());
+        parser.setKind(ASTParser.K_COMPILATION_UNIT);
+        parser.setEnvironment(new String[0], new String[0], null, true);
+        parser.setUnitName(path);
+
+        Map<String, String> javaOptions = JavaCore.getOptions();
+        javaOptions.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_11);
+        javaOptions.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, JavaCore.VERSION_11);
+        javaOptions.put(JavaCore.COMPILER_COMPLIANCE, JavaCore.VERSION_11);
+        parser.setCompilerOptions(javaOptions);
+
+        CompilationUnit astUnit = (CompilationUnit) parser.createAST(null);
+        astUnit.accept(new Visitor());
+
+        return code;
     }
 
     @Override
