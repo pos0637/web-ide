@@ -37,44 +37,57 @@ import java.util.concurrent.ConcurrentHashMap;
 public class JavaDebugger extends Debugger implements Runnable {
     // refs: https://blog.csdn.net/ksqqxq/article/details/7419758
     // refs: https://www.cnblogs.com/wade-luffy/p/5991785.html#_label4
-    // javac -g -source 1.8 -target 1.8 Test.java
+    // javac -g -source 1.8 -target 1.8 *.java
     // java -Xdebug -Xrunjdwp:transport=dt_socket,suspend=y,server=y,address=8000 Test
     private static final String HOST = "127.0.0.1";
     private static final String PORT = "5000";
     private static final String DT_SOCKET = "dt_socket";
     private static final int MAX_LINES = 1000;
+
     /**
      * 输出队列
      */
     private final List<String> output = new LinkedList<>();
+
     /**
      * 虚拟机
      */
     private VirtualMachine vm;
+
     /**
      * 断点列表
      */
     private ConcurrentHashMap<String, BreakpointRequest> breakpointRequests = new ConcurrentHashMap<>();
+
     /**
      * 虚拟机事件处理线程
      */
     private Thread thread;
+
     /**
      * 运行标志
      */
     private boolean runFlag;
+
     /**
      * 目标进程
      */
     private ProcessExecutor targetProcess;
+
     /**
      * 当前调试线程
      */
     private ThreadReference threadReference;
+
     /**
      * 调试请求列表
      */
     private ConcurrentHashMap<ThreadReference, StepRequest> stepRequestMap = new ConcurrentHashMap<>();
+
+    /**
+     * 上下文
+     */
+    private Context context = new Context();
 
     @Override
     public void dispose() {
@@ -119,7 +132,7 @@ public class JavaDebugger extends Debugger implements Runnable {
     }
 
     public synchronized String getCode2(String path) {
-        File file = new File("./demos/demo1/" + path);
+        File file = new File("./demos/demo2/" + path);
         if (!file.exists()) {
             return null;
         }
@@ -169,8 +182,12 @@ public class JavaDebugger extends Debugger implements Runnable {
         javaOptions.put(JavaCore.COMPILER_COMPLIANCE, JavaCore.VERSION_11);
         parser.setCompilerOptions(javaOptions);
 
-        CompilationUnit astUnit = (CompilationUnit) parser.createAST(null);
-        astUnit.accept(new Visitor());
+        CompilationUnit cu = (CompilationUnit) parser.createAST(null);
+        System.out.println(">>>>>>>>>>>>>>");
+        context.setSourcePath(path);
+        context.setCu(cu);
+        cu.accept(new Visitor(context));
+        System.out.println("<<<<<<<<<<<<<<");
 
         return code;
     }
