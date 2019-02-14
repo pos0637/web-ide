@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * @author Alex
  * @hidden https://www.eclipse.org/articles/article.php?file=Article-JavaCodeManipulation_AST/index.html
+ * @hidden https://www.programcreek.com/java-api-examples/?class=org.eclipse.jdt.core.dom.ASTParser&method=createASTs
  */
 public class Visitor extends ASTVisitor {
     private Context context;

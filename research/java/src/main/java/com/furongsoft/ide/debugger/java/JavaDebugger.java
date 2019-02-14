@@ -18,6 +18,7 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.FileASTRequestor;
 import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
@@ -25,6 +26,10 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.file.FileVisitResult;
+import java.nio.file.Path;
+import java.nio.file.SimpleFileVisitor;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -171,8 +176,8 @@ public class JavaDebugger extends Debugger implements Runnable {
         parser.setResolveBindings(true);
         parser.setBindingsRecovery(true);
         parser.setStatementsRecovery(true);
-        parser.setSource(code.toCharArray());
         parser.setKind(ASTParser.K_COMPILATION_UNIT);
+        parser.setSource(code.toCharArray());
         parser.setEnvironment(new String[0], new String[0], null, true);
         parser.setUnitName(path);
 
@@ -688,5 +693,38 @@ public class JavaDebugger extends Debugger implements Runnable {
         }
 
         return true;
+    }
+
+    private void analyze(File rootFolder) {
+        final List<String> files = new ArrayList<>();
+        final List<String> encodings = new ArrayList<>();
+        try {
+            java.nio.file.Files.walkFileTree(rootFolder.toPath(), new SimpleFileVisitor<Path>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    if (file.endsWith(".java")) {
+                        files.add(file.toFile().getAbsolutePath());
+                        encodings.add("UTF-8");
+                    }
+                    return super.visitFile(file, attrs);
+                }
+            });
+        } catch (IOException e) {
+            Tracker.error(e);
+        }
+
+        final ASTParser parser = ASTParser.newParser(AST.JLS11);
+        parser.setResolveBindings(true);
+        parser.setBindingsRecovery(true);
+        parser.setStatementsRecovery(true);
+        parser.setKind(ASTParser.K_COMPILATION_UNIT);
+
+        FileASTRequestor requestor = new FileASTRequestor() {
+            @Override
+            public void acceptAST(String sourceFilePath, CompilationUnit cu) {
+            }
+        };
+        String[] bindingKeys = new String[files.size()];
+        parser.createASTs(files.toArray(new String[files.size()]), encodings.toArray(new String[encodings.size()]), bindingKeys, requestor, null);
     }
 }
