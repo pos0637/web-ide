@@ -17,6 +17,11 @@ public interface IDebugger {
     void dispose();
 
     /**
+     * 分析源代码
+     */
+    void analyze();
+
+    /**
      * 获取断点
      *
      * @return 断点列表

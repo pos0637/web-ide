@@ -14,7 +14,6 @@ import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.Transport;
 import com.sun.jdi.event.*;
 import com.sun.jdi.request.*;
-import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -100,6 +99,44 @@ public class JavaDebugger extends Debugger implements Runnable {
     }
 
     @Override
+    public void analyze() {
+        File rootFolder = new File("./demos/demo2");
+        final List<String> files = new ArrayList<>();
+        final List<String> encodings = new ArrayList<>();
+        try {
+            java.nio.file.Files.walkFileTree(rootFolder.toPath(), new SimpleFileVisitor<Path>() {
+                @Override
+                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
+                    if (file.toFile().getAbsolutePath().endsWith(".java")) {
+                        files.add(file.toFile().getAbsolutePath());
+                        encodings.add("UTF-8");
+                    }
+                    return super.visitFile(file, attrs);
+                }
+            });
+        } catch (IOException e) {
+            Tracker.error(e);
+        }
+
+        final ASTParser parser = ASTParser.newParser(AST.JLS11);
+        parser.setResolveBindings(true);
+        parser.setBindingsRecovery(true);
+        parser.setStatementsRecovery(true);
+        parser.setKind(ASTParser.K_COMPILATION_UNIT);
+        parser.setEnvironment(new String[0], new String[0], null, true);
+
+        FileASTRequestor requestor = new FileASTRequestor() {
+            @Override
+            public void acceptAST(String sourceFilePath, CompilationUnit cu) {
+                Tracker.info("acceptAST: " + sourceFilePath);
+                // cu.accept(new Visitor(context));
+            }
+        };
+        String[] bindingKeys = new String[]{};
+        parser.createASTs(files.toArray(new String[files.size()]), encodings.toArray(new String[encodings.size()]), bindingKeys, requestor, null);
+    }
+
+    @Override
     public synchronized boolean addBreakpoint(Breakpoint breakpoint) {
         if (!super.addBreakpoint(breakpoint)) {
             return false;
@@ -136,7 +173,8 @@ public class JavaDebugger extends Debugger implements Runnable {
         return true;
     }
 
-    public synchronized String getCode2(String path) {
+    @Override
+    public synchronized String getCode(String path) {
         File file = new File("./demos/demo2/" + path);
         if (!file.exists()) {
             return null;
@@ -166,35 +204,6 @@ public class JavaDebugger extends Debugger implements Runnable {
                 }
             }
         }
-    }
-
-    @Override
-    public synchronized String getCode(String path) {
-        String code = getCode2(path);
-
-        final ASTParser parser = ASTParser.newParser(AST.JLS11);
-        parser.setResolveBindings(true);
-        parser.setBindingsRecovery(true);
-        parser.setStatementsRecovery(true);
-        parser.setKind(ASTParser.K_COMPILATION_UNIT);
-        parser.setSource(code.toCharArray());
-        parser.setEnvironment(new String[0], new String[0], null, true);
-        parser.setUnitName(path);
-
-        Map<String, String> javaOptions = JavaCore.getOptions();
-        javaOptions.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_11);
-        javaOptions.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, JavaCore.VERSION_11);
-        javaOptions.put(JavaCore.COMPILER_COMPLIANCE, JavaCore.VERSION_11);
-        parser.setCompilerOptions(javaOptions);
-
-        CompilationUnit cu = (CompilationUnit) parser.createAST(null);
-        System.out.println(">>>>>>>>>>>>>>");
-        context.setSourcePath(path);
-        context.setCu(cu);
-        cu.accept(new Visitor(context));
-        System.out.println("<<<<<<<<<<<<<<");
-
-        return code;
     }
 
     @Override
@@ -693,38 +702,5 @@ public class JavaDebugger extends Debugger implements Runnable {
         }
 
         return true;
-    }
-
-    private void analyze(File rootFolder) {
-        final List<String> files = new ArrayList<>();
-        final List<String> encodings = new ArrayList<>();
-        try {
-            java.nio.file.Files.walkFileTree(rootFolder.toPath(), new SimpleFileVisitor<Path>() {
-                @Override
-                public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                    if (file.endsWith(".java")) {
-                        files.add(file.toFile().getAbsolutePath());
-                        encodings.add("UTF-8");
-                    }
-                    return super.visitFile(file, attrs);
-                }
-            });
-        } catch (IOException e) {
-            Tracker.error(e);
-        }
-
-        final ASTParser parser = ASTParser.newParser(AST.JLS11);
-        parser.setResolveBindings(true);
-        parser.setBindingsRecovery(true);
-        parser.setStatementsRecovery(true);
-        parser.setKind(ASTParser.K_COMPILATION_UNIT);
-
-        FileASTRequestor requestor = new FileASTRequestor() {
-            @Override
-            public void acceptAST(String sourceFilePath, CompilationUnit cu) {
-            }
-        };
-        String[] bindingKeys = new String[files.size()];
-        parser.createASTs(files.toArray(new String[files.size()]), encodings.toArray(new String[encodings.size()]), bindingKeys, requestor, null);
     }
 }

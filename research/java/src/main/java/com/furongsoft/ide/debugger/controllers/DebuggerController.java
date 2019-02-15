@@ -19,6 +19,12 @@ public class DebuggerController {
         this.debugger = debugger;
     }
 
+    @GetMapping("/analyze")
+    public RestResponse analyze() {
+        debugger.analyze();
+        return new RestResponse(HttpStatus.OK);
+    }
+
     @GetMapping("/codes")
     public RestResponse getCode(@RequestParam String path) {
         return new RestResponse(HttpStatus.OK, null, debugger.getCode(path));
@@ -85,7 +91,7 @@ public class DebuggerController {
 
     @GetMapping("/start")
     public RestResponse start(@RequestParam String script, @RequestParam String arguments) {
-        boolean ret = debugger.start("Test", "{\"-classpath\": \"./demos/demo1\"}");
+        boolean ret = debugger.start("Test", "{\"-classpath\": \"./demos/demo2\"}");
         return new RestResponse(ret ? HttpStatus.OK : HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
