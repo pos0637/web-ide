@@ -199,7 +199,10 @@ export default class Editor extends BaseComponent {
                             <Tabs.TabPane tab="Test.java" key="1">
                                 <CodeMirror
                                     editorDidMount={editor => {
-                                        this.cm = editor
+                                        this.cm = editor;
+                                        this.cm.getWrapperElement().addEventListener('mousemove', e => {
+                                            console.log(this.cm.coordsChar({ left: e.pageX, top: e.pageY }))
+                                        });
                                     }}
                                     value={this.state.code1}
                                     options={options}

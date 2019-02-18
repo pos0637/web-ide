@@ -63,10 +63,6 @@ module.exports = {
         ]
     },
     plugins: [
-        new CopyWebpackPlugin([{
-            from: path.resolve(__dirname, './public/fonts'),
-            to: path.resolve(__dirname, `${outputPath}/fonts`)
-        }]),
         new HtmlWebpackPlugin({
             filename: 'index.html',
             template: path.resolve(__dirname, './public/index.html'),
