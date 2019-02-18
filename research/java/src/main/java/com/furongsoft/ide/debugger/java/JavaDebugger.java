@@ -128,12 +128,16 @@ public class JavaDebugger extends Debugger implements Runnable {
         FileASTRequestor requestor = new FileASTRequestor() {
             @Override
             public void acceptAST(String sourceFilePath, CompilationUnit cu) {
-                Tracker.info("acceptAST: " + sourceFilePath);
-                // cu.accept(new Visitor(context));
+                context.setSourcePath(sourceFilePath);
+                context.setCu(cu);
+                cu.accept(new Visitor(context));
             }
         };
         String[] bindingKeys = new String[]{};
+
+        Tracker.info(">>>>>>>>>>>");
         parser.createASTs(files.toArray(new String[files.size()]), encodings.toArray(new String[encodings.size()]), bindingKeys, requestor, null);
+        Tracker.info("<<<<<<<<<<<");
     }
 
     @Override

@@ -51,7 +51,12 @@ public class Visitor extends ASTVisitor {
     @Override
     public boolean visit(MethodInvocation node) {
         IBinding binding = node.resolveMethodBinding();
-        // context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_REFS, Symbol.SYMBOL_SUB_TYPE_METHOD, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength()));
+        if (binding == null) {
+            System.out.println(String.format("MethodInvocation: %s, null", node.getName()));
+            return super.visit(node);
+        }
+
+        context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_REFS, Symbol.SYMBOL_SUB_TYPE_METHOD, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength()));
         System.out.println(String.format("MethodInvocation: %s, (%d)", node.getName(), node.getStartPosition()));
         return super.visit(node);
     }
