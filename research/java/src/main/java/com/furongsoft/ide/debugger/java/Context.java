@@ -5,9 +5,11 @@ import lombok.Getter;
 import lombok.Setter;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 
+import java.util.Comparator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * 上下文
@@ -25,7 +27,7 @@ public class Context {
     /**
      * 编译单元
      */
-    private CompilationUnit cu;
+    private CompilationUnit compilationUnit;
 
     /**
      * 符号定义表
@@ -44,8 +46,8 @@ public class Context {
      */
     public void addSymbol(Symbol symbol) {
         symbol.setSourcePath(sourcePath);
-        symbol.setLineNumber(cu.getLineNumber(symbol.getPosition()));
-        symbol.setColumnNumber(cu.getColumnNumber(symbol.getPosition()));
+        symbol.setLineNumber(compilationUnit.getLineNumber(symbol.getPosition()));
+        symbol.setColumnNumber(compilationUnit.getColumnNumber(symbol.getPosition()));
 
         if (symbol.getType() == Symbol.SYMBOL_TYPE_DECLARATION) {
             declarationSymbols.put(symbol.getKey(), symbol);
@@ -56,5 +58,28 @@ public class Context {
 
             symbols.get(symbol.getKey()).add(symbol);
         }
+    }
+
+    /**
+     * 获取符号
+     *
+     * @param sourcePath 源代码路径
+     * @param position   位置
+     * @return 符号
+     */
+    public Symbol getSymbol(String sourcePath, int position) {
+        List<Symbol> symbolList = new LinkedList<>();
+
+        symbolList.addAll(declarationSymbols.values().stream().filter(symbol ->
+                symbol.getSourcePath().equals(sourcePath) && (position >= symbol.getPosition()) && (position <= symbol.getPosition() + symbol.getLength())
+        ).collect(Collectors.toList()));
+
+        for (List<Symbol> list : symbols.values()) {
+            symbolList.addAll(list.stream().filter(symbol ->
+                    symbol.getSourcePath().equals(sourcePath) && (position >= symbol.getPosition()) && (position <= symbol.getPosition() + symbol.getLength())
+            ).collect(Collectors.toList()));
+        }
+
+        return symbolList.stream().min(Comparator.comparing(Symbol::getLength)).orElse(null);
     }
 }

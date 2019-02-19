@@ -22,6 +22,16 @@ public interface IDebugger {
     void analyze();
 
     /**
+     * 获取符号
+     *
+     * @param sourcePath   源代码路径
+     * @param lineNumber   行号
+     * @param columnNumber 列号
+     * @return 符号
+     */
+    Symbol getSymbol(String sourcePath, int lineNumber, int columnNumber);
+
+    /**
      * 获取断点
      *
      * @return 断点列表
@@ -71,10 +81,10 @@ public interface IDebugger {
     /**
      * 获取源代码
      *
-     * @param path 源代码路径
+     * @param sourcePath 源代码路径
      * @return 源代码
      */
-    String getCode(String path);
+    String getCode(String sourcePath);
 
     /**
      * 获取状态

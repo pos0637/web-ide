@@ -81,6 +81,11 @@ public class Symbol {
     private int position;
 
     /**
+     * 符号长度
+     */
+    private int length;
+
+    /**
      * 行号
      */
     private int lineNumber;
@@ -89,11 +94,6 @@ public class Symbol {
      * 列号
      */
     private int columnNumber;
-
-    /**
-     * 符号长度
-     */
-    private int length;
 
     public Symbol(int type, int subType, String name, String key, int position, int length) {
         this.type = type;
