@@ -1,15 +1,40 @@
 import { request } from '~/components/request';
 
 /**
- * 获取代码
- *
+ * 分析源代码
+ * 
  * @export
- * @param {*} path 代码路径
  * @param {*} succ 成功处理函数
  * @param {*} err 错误处理函数
  */
-export function getCode(path, succ, err) {
-    request('/api/v1/debugger/codes', 'get', { path: path }, succ, err);
+export function analyze(succ, err) {
+    request('/api/v1/debugger/analyze', 'get', null, succ, err);
+}
+
+/**
+ * 获取符号
+ * 
+ * @export
+ * @param {*} sourcePath 源代码路径
+ * @param {*} lineNumber 行号
+ * @param {*} columnNumber 列号
+ * @param {*} succ 成功处理函数
+ * @param {*} err 错误处理函数
+ */
+export function getSymbol(sourcePath, lineNumber, columnNumber, succ, err) {
+    request('/api/v1/debugger/symbol', 'get', { sourcePath: sourcePath, lineNumber: lineNumber, columnNumber: columnNumber }, succ, err);
+}
+
+/**
+ * 获取代码
+ *
+ * @export
+ * @param {*} sourcePath 源代码路径
+ * @param {*} succ 成功处理函数
+ * @param {*} err 错误处理函数
+ */
+export function getCode(sourcePath, succ, err) {
+    request('/api/v1/debugger/codes', 'get', { sourcePath: sourcePath }, succ, err);
 }
 
 /**

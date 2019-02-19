@@ -4,7 +4,7 @@ import { Tabs, List, Row, Col } from 'antd';
 import { Controlled as CodeMirror } from 'react-codemirror2';
 import BaseComponent from '~/components/baseComponent';
 import Button from '~/components/button';
-import { getCode, getInformation, getConsole, addBreakpoint, deleteBreakpoint } from '~/api/v1/debugger';
+import { analyze, getSymbol, getCode, getInformation, getConsole, addBreakpoint, deleteBreakpoint } from '~/api/v1/debugger';
 
 require('codemirror/lib/codemirror.css');
 require('codemirror/theme/material.css');
@@ -35,6 +35,14 @@ export default class Editor extends BaseComponent {
         breakpoints: []
     }
 
+    sourcePath = 'demos/demo2'
+
+    sourceCode = 'Test.java'
+
+    lineNumber = null
+
+    columnNumber = null
+
     componentDidMount() {
         super.componentDidMount();
 
@@ -42,7 +50,7 @@ export default class Editor extends BaseComponent {
             getInformation(information => {
                 console.log(information);
 
-                getCode('Test.java', code => {
+                getCode(`${this.sourcePath}/${this.sourceCode}`, code => {
                     this.setState({ code1: code });
                 });
 
@@ -103,6 +111,7 @@ export default class Editor extends BaseComponent {
     componentWillUnmount() {
         this.timer1 && clearTimeout(this.timer1);
         this.timer2 && clearTimeout(this.timer2);
+        this.timer3 && clearTimeout(this.timer3);
         super.componentWillUnmount();
     }
 
@@ -128,7 +137,7 @@ export default class Editor extends BaseComponent {
                         params={{
                             script: this.state.className,
                             arguments: {
-                                '-classpath': './demos/demo1'
+                                '-classpath': 'demos/demo2'
                             }
                         }}
                         resolve={data => {
@@ -201,7 +210,13 @@ export default class Editor extends BaseComponent {
                                     editorDidMount={editor => {
                                         this.cm = editor;
                                         this.cm.getWrapperElement().addEventListener('mousemove', e => {
-                                            console.log(this.cm.coordsChar({ left: e.pageX, top: e.pageY }))
+                                            const info = this.cm.coordsChar({ left: e.pageX, top: e.pageY });                                            
+                                            if ((info.line !== this.lineNumber) || (info.ch !== this.columnNumber)) {                                                
+                                                this.lineNumber = info.line;
+                                                this.columnNumber = info.ch;
+                                                this.timer3 && clearTimeout(this.timer3);
+                                                this._getSymbol(this.sourceCode, info.line + 1, info.ch + 1);
+                                            }
                                         });
                                     }}
                                     value={this.state.code1}
@@ -289,5 +304,14 @@ export default class Editor extends BaseComponent {
         marker.style.color = '#822';
         marker.innerHTML = '●';
         return marker;
+    }
+
+    _getSymbol(sourceCode, lineNumber, columnNumber) {
+        this.timer3 = setTimeout(() => {
+            getSymbol(sourceCode, lineNumber, columnNumber, symbol => {
+                console.log(`(${lineNumber}: ${columnNumber}): ${JSON.stringify(symbol)}`);
+            });
+            this.timer3 = null;
+        }, 1000);
     }
 }
