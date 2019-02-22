@@ -82,4 +82,20 @@ public class Context {
 
         return symbolList.stream().min(Comparator.comparing(Symbol::getLength)).orElse(null);
     }
+
+    /**
+     * 获取符号定义
+     *
+     * @param sourcePath 源代码路径
+     * @param position   位置
+     * @return 符号定义
+     */
+    public Symbol getDeclarationSymbol(String sourcePath, int position) {
+        Symbol symbol = getSymbol(sourcePath, position);
+        if (symbol == null) {
+            return null;
+        }
+
+        return declarationSymbols.get(symbol.getKey());
+    }
 }
