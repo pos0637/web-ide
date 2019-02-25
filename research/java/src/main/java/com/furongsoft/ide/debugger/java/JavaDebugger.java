@@ -103,12 +103,16 @@ public class JavaDebugger extends Debugger implements Runnable {
 
     @Override
     public String getSymbolValue(String sourcePath, int lineNumber, int columnNumber) {
+        if (variables == null) {
+            return null;
+        }
+
         Symbol symbol = analyzer.getDeclarationSymbol(sourcePath, lineNumber, columnNumber);
         if (symbol == null) {
             return null;
         }
 
-        Optional<Variable> result = variables.stream().filter(variable -> variable.getKey().equals(symbol.getKey())).findFirst();
+        Optional<Variable> result = variables.stream().filter(variable -> symbol.getKey().startsWith(variable.getKey())).findFirst();
         if (!result.isPresent()) {
             return null;
         }
@@ -621,6 +625,12 @@ public class JavaDebugger extends Debugger implements Runnable {
             List<LocalVariable> localVariables = stackFrame.visibleVariables();
             Location location = stackFrame.location();
             Method method = location.method();
+            for (LocalVariable localVariable : method.arguments()) {
+                Value value = stackFrame.getValue(localVariable);
+                Tracker.info(String.format("=========== arguments -> %s %s = %s", value.type(), localVariable.name(), value));
+                variables.add(new Variable(VariableType.local, value.type().name(), localVariable.name(), value.toString(), getSymbolKey(classType, method, localVariable)));
+            }
+
             for (LocalVariable localVariable : localVariables) {
                 Value value = stackFrame.getValue(localVariable);
                 Tracker.info(String.format("=========== local -> %s %s = %s", value.type(), localVariable.name(), value));
