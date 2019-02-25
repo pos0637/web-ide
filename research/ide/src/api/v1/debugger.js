@@ -22,7 +22,21 @@ export function analyze(succ, err) {
  * @param {*} err 错误处理函数
  */
 export function getSymbol(sourcePath, lineNumber, columnNumber, succ, err) {
-    request('/api/v1/debugger/symbol', 'get', { sourcePath: sourcePath, lineNumber: lineNumber, columnNumber: columnNumber }, succ, err);
+    request('/api/v1/debugger/symbols', 'get', { sourcePath: sourcePath, lineNumber: lineNumber, columnNumber: columnNumber }, succ, err);
+}
+
+/**
+ * 获取符号值
+ * 
+ * @export
+ * @param {*} sourcePath 源代码路径
+ * @param {*} lineNumber 行号
+ * @param {*} columnNumber 列号
+ * @param {*} succ 成功处理函数
+ * @param {*} err 错误处理函数
+ */
+export function getSymbolValue(sourcePath, lineNumber, columnNumber, succ, err) {
+    request('/api/v1/debugger/symbolValues', 'get', { sourcePath: sourcePath, lineNumber: lineNumber, columnNumber: columnNumber }, succ, err);
 }
 
 /**

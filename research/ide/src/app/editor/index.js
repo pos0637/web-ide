@@ -4,7 +4,7 @@ import { Tabs, List, Row, Col } from 'antd';
 import { Controlled as CodeMirror } from 'react-codemirror2';
 import BaseComponent from '~/components/baseComponent';
 import Button from '~/components/button';
-import { analyze, getSymbol, getCode, getInformation, getConsole, addBreakpoint, deleteBreakpoint } from '~/api/v1/debugger';
+import { analyze, getSymbol, getSymbolValue, getCode, getInformation, getConsole, addBreakpoint, deleteBreakpoint } from '~/api/v1/debugger';
 
 require('codemirror/lib/codemirror.css');
 require('codemirror/theme/material.css');
@@ -227,6 +227,17 @@ export default class Editor extends BaseComponent {
                     >
                         退出
                     </Button>
+                    <Button
+                        icon="scan"
+                        disabled={this.state.state !== 'Idle'}
+                        url="/api/v1/debugger/analyze"
+                        method="get"
+                        resolve={data => {
+                            console.log(data);
+                        }}
+                    >
+                        分析
+                    </Button>
                 </div>
                 <div style={{ width: '100%', height: '100%' }}>
                     <div style={{ marginTop: '10px' }}>
@@ -242,7 +253,7 @@ export default class Editor extends BaseComponent {
                                                 this.lineNumber = info.line;
                                                 this.columnNumber = info.ch;
                                                 this.timer3 && clearTimeout(this.timer3);
-                                                this._getSymbol(this.sourceCode, info.line + 1, info.ch + 1);
+                                                this._getSymbol(this.sourcePaths[0], info.line + 1, info.ch + 1);
                                             }
                                         });
                                     }}
@@ -358,10 +369,10 @@ export default class Editor extends BaseComponent {
         return null;
     }
 
-    _getSymbol(sourceCode, lineNumber, columnNumber) {
+    _getSymbol(sourcePath, lineNumber, columnNumber) {
         this.timer3 = setTimeout(() => {
-            getSymbol(sourceCode, lineNumber, columnNumber, symbol => {
-                console.log(`(${lineNumber}: ${columnNumber}): ${JSON.stringify(symbol)}`);
+            getSymbolValue(sourcePath, lineNumber, columnNumber, value => {
+                console.log(`(${lineNumber}: ${columnNumber}): ${value}`);
             });
             this.timer3 = null;
         }, 1000);

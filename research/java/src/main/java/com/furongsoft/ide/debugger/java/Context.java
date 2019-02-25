@@ -46,6 +46,7 @@ public class Context {
      */
     public void addSymbol(Symbol symbol) {
         symbol.setSourcePath(sourcePath);
+        symbol.setKey(getSymbolKey(symbol));
         symbol.setLineNumber(compilationUnit.getLineNumber(symbol.getPosition()));
         symbol.setColumnNumber(compilationUnit.getColumnNumber(symbol.getPosition()));
 
@@ -97,5 +98,25 @@ public class Context {
         }
 
         return declarationSymbols.get(symbol.getKey());
+    }
+
+    /**
+     * 获取符号类型缩写
+     *
+     * @param symbol 符号
+     * @return 类型缩写
+     */
+    private String getSymbolKey(Symbol symbol) {
+        // member: L[file]~[class signature];.[name])[signature] -> [class signature].[name])[signature]
+        // local: L[file]~[class signature];.[method name][method signature]#[name] -> [class signature].[method name][method signature]#[name]
+        String key = symbol.getKey();
+        key = key.replace("\\", "/");
+
+        String path = sourcePath.substring(0, sourcePath.length() - ".java".length());
+        key = key.replace(path, "");
+        key = key.replace("/~", ".");
+        key = key.replace("~", "");
+
+        return key;
     }
 }

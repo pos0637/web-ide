@@ -99,4 +99,21 @@ public class Analyzer {
 
         return context.getSymbol(path, compilationUnits.get(path).getPosition(lineNumber, columnNumber));
     }
+
+    /**
+     * 获取符号定义
+     *
+     * @param sourcePath   源代码路径
+     * @param lineNumber   行号
+     * @param columnNumber 列号
+     * @return 符号定义
+     */
+    public Symbol getDeclarationSymbol(String sourcePath, int lineNumber, int columnNumber) {
+        String path = rootPath + '/' + sourcePath;
+        if (!compilationUnits.containsKey(path)) {
+            return null;
+        }
+
+        return context.getDeclarationSymbol(path, compilationUnits.get(path).getPosition(lineNumber, columnNumber));
+    }
 }

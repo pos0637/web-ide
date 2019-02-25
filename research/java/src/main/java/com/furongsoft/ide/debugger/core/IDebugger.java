@@ -32,6 +32,16 @@ public interface IDebugger {
     Symbol getSymbol(String sourcePath, int lineNumber, int columnNumber);
 
     /**
+     * 获取符号值
+     *
+     * @param sourcePath   源代码路径
+     * @param lineNumber   行号
+     * @param columnNumber 列号
+     * @return 符号值
+     */
+    String getSymbolValue(String sourcePath, int lineNumber, int columnNumber);
+
+    /**
      * 获取断点
      *
      * @return 断点列表

@@ -34,4 +34,9 @@ public class Variable {
      * 值
      */
     private String value;
+
+    /**
+     * 符号类型缩写
+     */
+    private String key;
 }

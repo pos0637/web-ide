@@ -102,7 +102,24 @@ public class JavaDebugger extends Debugger implements Runnable {
     }
 
     @Override
+    public String getSymbolValue(String sourcePath, int lineNumber, int columnNumber) {
+        Symbol symbol = analyzer.getDeclarationSymbol(sourcePath, lineNumber, columnNumber);
+        if (symbol == null) {
+            return null;
+        }
+
+        Optional<Variable> result = variables.stream().filter(variable -> variable.getKey().equals(symbol.getKey())).findFirst();
+        if (!result.isPresent()) {
+            return null;
+        }
+
+        return result.get().getValue();
+    }
+
+    @Override
     public synchronized boolean addBreakpoint(Breakpoint breakpoint) {
+        String sourcePath = breakpoint.getSourcePath();
+        breakpoint.setClassName(sourcePath.substring(0, sourcePath.length() - ".java".length()));
         if (!super.addBreakpoint(breakpoint)) {
             return false;
         }
@@ -585,12 +602,12 @@ public class JavaDebugger extends Debugger implements Runnable {
             Method method = ((MethodExitEvent) event).method();
             Tracker.info("MethodExitEvent: " + method.name());
             return true;
-        } else if (event instanceof BreakpointEvent) {
+        } else if ((event instanceof BreakpointEvent) || (event instanceof StepEvent)) {
             List<com.furongsoft.ide.debugger.entities.Location> locations = new ArrayList<>();
             List<Variable> variables = new ArrayList<>();
 
-            BreakpointEvent breakpointEvent = (BreakpointEvent) event;
-            ThreadReference threadReference = breakpointEvent.thread();
+            LocatableEvent locatableEvent = (LocatableEvent) event;
+            ThreadReference threadReference = locatableEvent.thread();
             List<StackFrame> frames = threadReference.frames();
             for (StackFrame frame : frames) {
                 Location location = frame.location();
@@ -600,58 +617,24 @@ public class JavaDebugger extends Debugger implements Runnable {
             }
 
             StackFrame stackFrame = threadReference.frame(0);
+            ReferenceType classType = stackFrame.thisObject().referenceType();
             List<LocalVariable> localVariables = stackFrame.visibleVariables();
+            Location location = stackFrame.location();
+            Method method = location.method();
             for (LocalVariable localVariable : localVariables) {
                 Value value = stackFrame.getValue(localVariable);
                 Tracker.info(String.format("=========== local -> %s %s = %s", value.type(), localVariable.name(), value));
-                variables.add(new Variable(VariableType.local, value.type().name(), localVariable.name(), value.toString()));
+                variables.add(new Variable(VariableType.local, value.type().name(), localVariable.name(), value.toString(), getSymbolKey(classType, method, localVariable)));
             }
 
             Tracker.info(stackFrame.thisObject().type().name());
-            List<Field> fields = stackFrame.thisObject().referenceType().allFields();
+            List<Field> fields = classType.allFields();
             Map<Field, Value> map = stackFrame.thisObject().getValues(fields);
             for (Map.Entry<Field, Value> entry : map.entrySet()) {
-                Tracker.info(String.format("=========== member -> %s %s = %s", entry.getValue().type(), entry.getKey().name(), entry.getValue()));
-                variables.add(new Variable(VariableType.member, entry.getValue().type().name(), entry.getKey().name(), entry.getValue().toString()));
-            }
-
-            synchronized (this) {
-                this.debuggerState = DebuggerState.Breaking;
-                this.location = locations.get(0);
-                this.stack = new Stack(locations);
-                this.variables = variables;
-                this.threadReference = threadReference;
-            }
-
-            return false;
-        } else if (event instanceof StepEvent) {
-            List<com.furongsoft.ide.debugger.entities.Location> locations = new ArrayList<>();
-            List<Variable> variables = new ArrayList<>();
-
-            StepEvent stepEvent = (StepEvent) event;
-            ThreadReference threadReference = stepEvent.thread();
-            List<StackFrame> frames = threadReference.frames();
-            for (StackFrame frame : frames) {
-                Location location = frame.location();
-                Method method = location.method();
-                Tracker.info(String.format("=========== frame -> %s (%s:%s)", method.name(), location.sourcePath(), location.lineNumber()));
-                locations.add(new com.furongsoft.ide.debugger.entities.Location(location.sourcePath(), location.lineNumber(), method.name()));
-            }
-
-            StackFrame stackFrame = threadReference.frame(0);
-            List<LocalVariable> localVariables = stackFrame.visibleVariables();
-            for (LocalVariable localVariable : localVariables) {
-                Value value = stackFrame.getValue(localVariable);
-                Tracker.info(String.format("=========== local -> %s %s = %s", value.type(), localVariable.name(), value));
-                variables.add(new Variable(VariableType.local, value.type().name(), localVariable.name(), value.toString()));
-            }
-
-            Tracker.info(stackFrame.thisObject().type().name());
-            List<Field> fields = stackFrame.thisObject().referenceType().allFields();
-            Map<Field, Value> map = stackFrame.thisObject().getValues(fields);
-            for (Map.Entry<Field, Value> entry : map.entrySet()) {
-                Tracker.info(String.format("=========== member -> %s %s = %s", entry.getValue().type(), entry.getKey().name(), entry.getValue()));
-                variables.add(new Variable(VariableType.member, entry.getValue().type().name(), entry.getKey().name(), entry.getValue().toString()));
+                Field field = entry.getKey();
+                Value value = entry.getValue();
+                Tracker.info(String.format("=========== member -> %s %s = %s", value.type(), field.name(), value));
+                variables.add(new Variable(VariableType.member, value.type().name(), field.name(), value.toString(), getSymbolKey(classType, field)));
             }
 
             synchronized (this) {
@@ -666,5 +649,30 @@ public class JavaDebugger extends Debugger implements Runnable {
         }
 
         return true;
+    }
+
+    /**
+     * 获取符号类型缩写
+     *
+     * @param classType     类型
+     * @param method        方法
+     * @param localVariable 变量
+     * @return 符号类型缩写
+     */
+    private String getSymbolKey(ReferenceType classType, Method method, LocalVariable localVariable) {
+        // local: [class signature].[method name][method signature]#[name]
+        return String.format("%s.%s%s#%s", classType.signature(), method.name(), method.signature(), localVariable.name());
+    }
+
+    /**
+     * 获取符号类型缩写
+     *
+     * @param classType 类型
+     * @param field     变量
+     * @return 符号类型缩写
+     */
+    private String getSymbolKey(ReferenceType classType, Field field) {
+        // member: [class signature].[name])[signature]
+        return String.format("%s.%s)%s", classType.signature(), field.name(), field.signature());
     }
 }
