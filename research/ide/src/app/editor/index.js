@@ -27,7 +27,7 @@ export default class Editor extends BaseComponent {
 
     state = {
         className: 'Test',
-        code1: '',
+        codes: [],
         state: 0,
         stack: [],
         variables: [],
@@ -35,38 +35,64 @@ export default class Editor extends BaseComponent {
         breakpoints: []
     }
 
-    sourcePath = 'demos/demo2'
+    /**
+     * CodeMirror对象列表
+     *
+     * @memberof Editor
+     */
+    cms = []
 
-    sourceCode = 'Test.java'
+    /**
+     * 源代码路径列表
+     *
+     * @memberof Editor
+     */
+    sourcePaths = ['Test.java']
 
+    /**
+     * 当前编辑器索引
+     *
+     * @memberof Editor
+     */
+    tabIndex = null
+
+    /**
+     * 当前编辑器行号
+     *
+     * @memberof Editor
+     */
     lineNumber = null
 
+    /**
+     * 当前编辑器列号
+     *
+     * @memberof Editor
+     */
     columnNumber = null
 
     componentDidMount() {
         super.componentDidMount();
 
+        this.timer0 = setInterval(() => {
+            this.sourcePaths.forEach((sourcePath, index) => {
+                getCode(sourcePath, code => {
+                    const { codes } = this.state;
+                    codes[index] = code;
+                    this.setState({ codes: Array.from(codes) });
+                });
+            });
+        }, 2000);
+
         this.timer1 = setInterval(() => {
             getInformation(information => {
                 console.log(information);
-
-                getCode(`${this.sourcePath}/${this.sourceCode}`, code => {
-                    this.setState({ code1: code });
-                });
-
                 this.setState({ state: information.debuggerState });
-
-                const marks = this.cm.getAllMarks();
-                marks && marks.forEach(mark => mark.clear());
-                if (information.location) {
-                    const info = this.cm.lineInfo(information.location.lineNumber - 1);
-                    this.cm.markText({ line: information.location.lineNumber - 1, ch: 0 }, { line: information.location.lineNumber - 1, ch: info.text.length }, { className: 'styled-background' });
-                }
+                this._updateLocation(information.location);
 
                 if ((information.stack) && (information.stack.locations)) {
                     const stack = [];
                     information.stack.locations.forEach(location => {
-                        stack.push(`${location.path}:${location.lineNumber}, ${location.method}()`);
+                        stack.push(`${location.sourcePath}:${location.lineNumber}, ${location.method}()`);
                     });
                     this.setState({ stack: stack });
                 }
@@ -204,14 +230,15 @@ export default class Editor extends BaseComponent {
                 </div>
                 <div style={{ width: '100%', height: '100%' }}>
                     <div style={{ marginTop: '10px' }}>
-                        <Tabs type="card" defaultActiveKey="1">
+                        <Tabs type="card" defaultActiveKey="1" onChange={activeKey => { this.tabIndex = activeKey; }}>
                             <Tabs.TabPane tab="Test.java" key="1">
                                 <CodeMirror
                                     editorDidMount={editor => {
-                                        this.cm = editor;
-                                        this.cm.getWrapperElement().addEventListener('mousemove', e => {
-                                            const info = this.cm.coordsChar({ left: e.pageX, top: e.pageY });                                            
-                                            if ((info.line !== this.lineNumber) || (info.ch !== this.columnNumber)) {                                                
+                                        const cm = editor;
+                                        this.cms[0] = cm;
+                                        cm.getWrapperElement().addEventListener('mousemove', e => {
+                                            const info = cm.coordsChar({ left: e.pageX, top: e.pageY });
+                                            if ((info.line !== this.lineNumber) || (info.ch !== this.columnNumber)) {
                                                 this.lineNumber = info.line;
                                                 this.columnNumber = info.ch;
                                                 this.timer3 && clearTimeout(this.timer3);
@@ -219,12 +246,11 @@ export default class Editor extends BaseComponent {
                                             }
                                         });
                                     }}
-                                    value={this.state.code1}
+                                    value={this.state.codes[0]}
                                     options={options}
                                     onBeforeChange={(editor, data, value) => {
-                                        this.setState({ code1: value });
                                     }}
-                                    onGutterClick={this._onGutterClick}
+                                    onGutterClick={(cm, n) => this._onGutterClick(this.sourcePaths[0], cm, n)}
                                 />
                             </Tabs.TabPane>
                             <Tabs.TabPane tab="Test1.java" key="2" />
@@ -275,26 +301,29 @@ export default class Editor extends BaseComponent {
         );
     }
 
-    _onGutterClick = (cm, n) => {
+    _onGutterClick(sourcePath, cm, n) {
         const info = cm.lineInfo(n);
-        info.gutterMarkers ? this._deleteBreakpoint(cm, n) : this._addBreakpoint(cm, n);
+        info.gutterMarkers ? this._deleteBreakpoint(sourcePath, cm, n) : this._addBreakpoint(sourcePath, cm, n);
     }
 
     _updateBreakpoint(breakpoints) {
-        if (this.cm) {
-            this.cm.clearGutter('breakpoints');
-            breakpoints && breakpoints.forEach((breakpoint) => this.cm.setGutterMarker(breakpoint.lineNumber - 1, 'breakpoints', this._makeMarker()));
-        }
+        this.cms.forEach(cm => cm.clearGutter('breakpoints'));
+        breakpoints && breakpoints.forEach(breakpoint => {
+            const cm = this._getCodeMirror(breakpoint.sourcePath);
+            if (cm !== null) {
+                cm.setGutterMarker(breakpoint.lineNumber - 1, 'breakpoints', this._makeMarker());
+            }
+        });
     }
 
-    _addBreakpoint(cm, n) {
-        addBreakpoint(this.state.className, n + 1, () => {
+    _addBreakpoint(sourcePath, cm, n) {
+        addBreakpoint(sourcePath, n + 1, () => {
             cm.setGutterMarker(n, 'breakpoints', this._makeMarker());
         });
     }
 
-    _deleteBreakpoint(cm, n) {
-        deleteBreakpoint(this.state.className, n + 1, () => {
+    _deleteBreakpoint(sourcePath, cm, n) {
+        deleteBreakpoint(sourcePath, n + 1, () => {
             cm.setGutterMarker(n, 'breakpoints', null);
         });
     }
@@ -304,6 +333,29 @@ export default class Editor extends BaseComponent {
         marker.style.color = '#822';
         marker.innerHTML = '●';
         return marker;
+    }
+
+    _updateLocation(location) {
+        this.cms.forEach(cm => {
+            const marks = cm.getAllMarks();
+            marks && marks.forEach(mark => mark.clear());
+        });
+
+        if (location) {
+            const cm = this._getCodeMirror(location.sourcePath);
+            const info = cm.lineInfo(location.lineNumber - 1);
+            cm.markText({ line: location.lineNumber - 1, ch: 0 }, { line: location.lineNumber - 1, ch: info.text.length }, { className: 'styled-background' });
+        }
+    }
+
+    _getCodeMirror(sourcePath) {
+        for (let i = 0; i < this.sourcePaths.length; i += 1) {
+            if (this.sourcePaths[i] === sourcePath) {
+                return this.cms[i];
+            }
+        }
+
+        return null;
     }
 
     _getSymbol(sourceCode, lineNumber, columnNumber) {

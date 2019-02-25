@@ -14,6 +14,11 @@ import lombok.Setter;
 @AllArgsConstructor
 public class Breakpoint {
     /**
+     * 源代码路径
+     */
+    private String sourcePath;
+
+    /**
      * 类名称
      */
     private String className;

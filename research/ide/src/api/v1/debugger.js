@@ -118,24 +118,24 @@ export function getBreakpoints(succ, err) {
  * 添加断点
  *
  * @export
- * @param {*} className 类名称
+ * @param {*} sourcePath 源代码路径
  * @param {*} lineNumber 行号
  * @param {*} succ 成功处理函数
  * @param {*} err 错误处理函数
  */
-export function addBreakpoint(className, lineNumber, succ, err) {
-    request('/api/v1/debugger/breakpoints', 'post', { className: className, lineNumber: lineNumber, enabled: true }, succ, err);
+export function addBreakpoint(sourcePath, lineNumber, succ, err) {
+    request('/api/v1/debugger/breakpoints', 'post', { sourcePath: sourcePath, lineNumber: lineNumber, enabled: true }, succ, err);
 }
 
 /**
  * 删除断点
  *
  * @export
- * @param {*} className 类名称
+ * @param {*} sourcePath 源代码路径
  * @param {*} lineNumber 行号
  * @param {*} succ 成功处理函数
  * @param {*} err 错误处理函数
  */
-export function deleteBreakpoint(className, lineNumber, succ, err) {
-    request('/api/v1/debugger/breakpoints/delete', 'post', { className: className, lineNumber: lineNumber, enabled: true }, succ, err);
+export function deleteBreakpoint(sourcePath, lineNumber, succ, err) {
+    request('/api/v1/debugger/breakpoints/delete', 'post', { sourcePath: sourcePath, lineNumber: lineNumber, enabled: true }, succ, err);
 }

@@ -18,7 +18,7 @@ public class Location {
     /**
      * 源代码路径
      */
-    private String path;
+    private String sourcePath;
 
     /**
      * 行号

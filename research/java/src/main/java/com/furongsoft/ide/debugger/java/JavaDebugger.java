@@ -39,6 +39,7 @@ public class JavaDebugger extends Debugger implements Runnable {
     private static final String PORT = "5000";
     private static final String DT_SOCKET = "dt_socket";
     private static final int MAX_LINES = 1000;
+    private static final String ROOT_PATH = "demos/demo2";
 
     /**
      * 输出队列
@@ -92,7 +93,7 @@ public class JavaDebugger extends Debugger implements Runnable {
 
     @Override
     public void analyze() {
-        analyzer.analyze("demos/demo2");
+        analyzer.analyze(ROOT_PATH);
     }
 
     @Override
@@ -139,7 +140,7 @@ public class JavaDebugger extends Debugger implements Runnable {
 
     @Override
     public synchronized String getCode(String sourcePath) {
-        File file = new File(sourcePath);
+        File file = new File(ROOT_PATH + '/' + sourcePath);
         if (!file.exists()) {
             return null;
         }

@@ -48,6 +48,9 @@ public abstract class Debugger implements IDebugger {
             return false;
         }
 
+        String sourcePath = breakpoint.getSourcePath();
+        String className = sourcePath.substring(0, sourcePath.length() - ".java".length());
+        breakpoint.setClassName(className);
         breakpoints.put(breakpoint.key(), breakpoint);
 
         return true;
