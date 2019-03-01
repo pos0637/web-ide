@@ -16,6 +16,9 @@ import com.sun.jdi.event.*;
 import com.sun.jdi.request.*;
 import org.springframework.stereotype.Component;
 
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -23,6 +26,8 @@ import java.io.IOException;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Java调试器
@@ -93,6 +98,7 @@ public class JavaDebugger extends Debugger implements Runnable {
 
     @Override
     public void analyze() {
+        eval();
         analyzer.analyze(ROOT_PATH);
     }
 
@@ -684,5 +690,70 @@ public class JavaDebugger extends Debugger implements Runnable {
     private String getSymbolKey(ReferenceType classType, Field field) {
         // member: [class signature].[name])[signature]
         return String.format("%s.%s)%s", classType.signature(), field.name(), field.signature());
+    }
+
+    private Object eval() {
+        ScriptEngine engine = new ScriptEngineManager().getEngineByName("JavaScript");
+        Object result = null;
+
+        String expression = "a + b.c + d.e(f(), 1, \"c\") + 6";
+        expression = prepareExpression(expression);
+
+        try {
+            engine.put("context", new Foo());
+            engine.put("a", new Foo());
+            engine.put("b", new Foo());
+            engine.put("d", new Foo());
+            // a + b.c + d.e(f)
+            engine.eval("" +
+                    "load('nashorn:mozilla_compat.js');\n" +
+                    "importPackage(com.furongsoft.ide.debugger.java);\n" +
+                    "result = context.invoke(\"a\") + context.invoke(\"b\").invoke(\"c\") + context.invoke(\"d\").invoke(\"e\", 3);");
+            result = engine.get("result");
+        } catch (ScriptException e) {
+            Tracker.error(e);
+        }
+
+        return result;
+    }
+
+    private String prepareExpression(String expression) {
+        Pattern pattern = Pattern.compile("[^\"][a-zA-Z_][a-zA-Z0-9_]*");
+        Matcher matcher = pattern.matcher(expression);
+
+        StringBuffer sb = new StringBuffer();
+        while (matcher.find()) {
+            String match = matcher.group();
+            if (match.startsWith(".")) {
+                matcher.appendReplacement(sb, String.format(".invoke(\"%s\"", match));
+            } else if (match.startsWith("(")) {
+                matcher.appendReplacement(sb, String.format("(__context.invoke(\"%s\"", match));
+            } else {
+                matcher.appendReplacement(sb, String.format("__context.invoke(\"%s\"", match));
+            }
+
+            matcher.appendReplacement(sb, "favour");
+        }
+        matcher.appendTail(sb);
+
+        return sb.toString();
+    }
+
+    public class Foo {
+        public Object invoke(String methodName, Object... arguments) {
+            if (methodName.equals("a")) {
+                return 1;
+            } else if (methodName.equals("b")) {
+                return new Foo();
+            } else if (methodName.equals("c")) {
+                return 2;
+            } else if (methodName.equals("d")) {
+                return new Foo();
+            } else if (methodName.equals("e")) {
+                return arguments[0];
+            }
+
+            return null;
+        }
     }
 }
