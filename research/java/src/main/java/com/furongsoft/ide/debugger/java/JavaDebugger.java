@@ -18,7 +18,6 @@ import org.springframework.stereotype.Component;
 
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -98,7 +97,6 @@ public class JavaDebugger extends Debugger implements Runnable {
 
     @Override
     public void analyze() {
-        eval();
         analyzer.analyze(ROOT_PATH);
     }
 
@@ -692,65 +690,156 @@ public class JavaDebugger extends Debugger implements Runnable {
         return String.format("%s.%s)%s", classType.signature(), field.name(), field.signature());
     }
 
-    private Object eval() {
+    /**
+     * 执行表达式
+     *
+     * @param expression 表达式
+     * @return 结果
+     */
+    private Object evaluation(String expression) {
         ScriptEngine engine = new ScriptEngineManager().getEngineByName("JavaScript");
         Object result = null;
 
-        String expression = "a + b.c + d.e(f(), 1, \"c\") + 6";
-        expression = prepareExpression(expression);
-
         try {
-            engine.put("context", new Foo());
-            engine.put("a", new Foo());
-            engine.put("b", new Foo());
-            engine.put("d", new Foo());
-            // a + b.c + d.e(f)
+            engine.put("__context__", new Invoker());
             engine.eval("" +
                     "load('nashorn:mozilla_compat.js');\n" +
                     "importPackage(com.furongsoft.ide.debugger.java);\n" +
-                    "result = context.invoke(\"a\") + context.invoke(\"b\").invoke(\"c\") + context.invoke(\"d\").invoke(\"e\", 3);");
-            result = engine.get("result");
-        } catch (ScriptException e) {
+                    String.format("__result__ = %s;", prepareExpression(expression)));
+            result = engine.get("__result__");
+        } catch (Exception e) {
             Tracker.error(e);
         }
 
         return result;
     }
 
+    /**
+     * 预处理表达式
+     *
+     * @param expression 表达式
+     * @return 表达式
+     */
     private String prepareExpression(String expression) {
-        Pattern pattern = Pattern.compile("[^\"][a-zA-Z_][a-zA-Z0-9_]*");
-        Matcher matcher = pattern.matcher(expression);
+        Pattern pattern1 = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9]*[\\s]*\\(");
+        Pattern pattern2 = Pattern.compile("[a-zA-Z_][a-zA-Z_0-9]*");
+        Pattern pattern3 = Pattern.compile("__invoke\\(");
+        StringBuffer sb1 = new StringBuffer();
+        StringBuffer sb2 = new StringBuffer();
+        StringBuffer sb3 = new StringBuffer();
 
-        StringBuffer sb = new StringBuffer();
-        while (matcher.find()) {
-            String match = matcher.group();
-            if (match.startsWith(".")) {
-                matcher.appendReplacement(sb, String.format(".invoke(\"%s\"", match));
-            } else if (match.startsWith("(")) {
-                matcher.appendReplacement(sb, String.format("(__context.invoke(\"%s\"", match));
-            } else {
-                matcher.appendReplacement(sb, String.format("__context.invoke(\"%s\"", match));
+        Matcher matcher1 = pattern1.matcher(expression);
+        while (matcher1.find()) {
+            String match = matcher1.group();
+            System.out.println(match);
+            match = match.substring(0, match.length() - 1);
+            matcher1.appendReplacement(sb1, String.format("__invoke(\"%s\", ", match));
+        }
+        matcher1.appendTail(sb1);
+
+        expression = sb1.toString();
+        Matcher matcher2 = pattern2.matcher(expression);
+        while (matcher2.find()) {
+            String match = matcher2.group();
+            System.out.println(match);
+            if (match.equals("__invoke")) {
+                continue;
             }
 
-            matcher.appendReplacement(sb, "favour");
-        }
-        matcher.appendTail(sb);
+            if (matcher2.start() > 0) {
+                if (expression.charAt(matcher2.start() - 1) == '\"') {
+                    continue;
+                }
+            }
 
-        return sb.toString();
+            matcher2.appendReplacement(sb2, String.format("__invoke(\"%s\")", match));
+        }
+        matcher2.appendTail(sb2);
+
+        String result = sb2.toString();
+        result = result.replaceAll(",[\\s]*\\)", ")");
+
+        Matcher matcher3 = pattern3.matcher(result);
+        while (matcher3.find()) {
+            if (isLastInvocation(result, matcher3.end())) {
+                matcher3.appendReplacement(sb3, "__invoke2(");
+            }
+        }
+        matcher3.appendTail(sb3);
+
+        result = sb3.toString();
+        result = result.replaceAll("\\.__invoke", ".invoke");
+        result = result.replaceAll("__invoke", "__context__.invoke");
+        Tracker.info(result);
+
+        return result;
     }
 
-    public class Foo {
+    /**
+     * 是否为最后一次调用函数
+     *
+     * @param expression 表达式
+     * @param openTagPos 开始标签位置
+     * @return 是否为最后一次调用函数
+     */
+    private boolean isLastInvocation(String expression, int openTagPos) {
+        int pos = findCloseTag(expression, openTagPos, '(', ')');
+        if (pos == -1) {
+            return true;
+        }
+
+        if (pos >= expression.length() - 1) {
+            return true;
+        }
+
+        return expression.charAt(pos + 1) != '.';
+    }
+
+    /**
+     * 寻找闭合标签
+     *
+     * @param expression 表达式
+     * @param openTagPos 开始标签位置
+     * @param openTag    开始标签字符
+     * @param closeTag   闭合标签字符
+     * @return 闭合标签位置
+     */
+    private int findCloseTag(String expression, int openTagPos, char openTag, char closeTag) {
+        for (int i = openTagPos + 1, count = 1; i < expression.length(); ++i) {
+            if (expression.charAt(i) == openTag) {
+                count++;
+            } else if (expression.charAt(i) == closeTag) {
+                count--;
+            }
+
+            if (count == 0) {
+                return i;
+            }
+        }
+
+        return -1;
+    }
+
+    public class Invoker {
         public Object invoke(String methodName, Object... arguments) {
+            if (methodName.equals("b")) {
+                return new Invoker();
+            } else if (methodName.equals("d")) {
+                return new Invoker();
+            }
+
+            return null;
+        }
+
+        public Object invoke2(String methodName, Object... arguments) {
             if (methodName.equals("a")) {
                 return 1;
-            } else if (methodName.equals("b")) {
-                return new Foo();
             } else if (methodName.equals("c")) {
                 return 2;
-            } else if (methodName.equals("d")) {
-                return new Foo();
             } else if (methodName.equals("e")) {
                 return arguments[0];
+            } else if (methodName.equals("f")) {
+                return 3;
             }
 
             return null;
