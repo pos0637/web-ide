@@ -821,28 +821,137 @@ public class JavaDebugger extends Debugger implements Runnable {
     }
 
     public class Invoker {
-        public Object invoke(String methodName, Object... arguments) {
-            if (methodName.equals("b")) {
-                return new Invoker();
-            } else if (methodName.equals("d")) {
-                return new Invoker();
+        private ObjectReference objectReference;
+
+        public Object invoke(String name, Object... arguments) throws Exception {
+            if (objectReference == null) {
+                objectReference = getObjectReference(name);
+                if (objectReference == null) {
+                    throw new Exception("variable not found!");
+                }
+            } else {
+                List<Method> methods = objectReference.referenceType().methods();
+                Optional<Method> method = methods.stream().filter(m -> m.name().equals(name)).findFirst();
+                if (method.isEmpty()) {
+                    throw new Exception("method not found!");
+                }
+
+                List<Value> values = getArguments(method.get(), arguments);
+                Value value = objectReference.invokeMethod(JavaDebugger.this.threadReference, method.get(), values, ObjectReference.INVOKE_SINGLE_THREADED);
+                if (!(value instanceof ObjectReference)) {
+                    throw new Exception("return value invalid!");
+                }
+
+                objectReference = (ObjectReference) value;
             }
 
-            return null;
+            return this;
         }
 
-        public Object invoke2(String methodName, Object... arguments) {
-            if (methodName.equals("a")) {
-                return 1;
-            } else if (methodName.equals("c")) {
-                return 2;
-            } else if (methodName.equals("e")) {
-                return arguments[0];
-            } else if (methodName.equals("f")) {
-                return 3;
+        public Object invoke2(String name, Object... arguments) throws Exception {
+            List<Method> methods = objectReference.referenceType().methods();
+            Optional<Method> method = methods.stream().filter(m -> m.name().equals(name)).findFirst();
+            if (method.isEmpty()) {
+                throw new Exception("method not found!");
             }
 
-            return null;
+            List<Value> values = getArguments(method.get(), arguments);
+            Value value = objectReference.invokeMethod(JavaDebugger.this.threadReference, method.get(), values, ObjectReference.INVOKE_SINGLE_THREADED);
+
+            return value;
+        }
+
+        /**
+         * 获取对象引用
+         *
+         * @param name 对象名称
+         * @return 对象引用
+         */
+        private ObjectReference getObjectReference(String name) {
+            ThreadReference threadReference;
+            synchronized (this) {
+                threadReference = JavaDebugger.this.threadReference;
+            }
+
+            if (threadReference == null) {
+                return null;
+            }
+
+            try {
+                StackFrame stackFrame = threadReference.frame(0);
+                if (name.equals("this")) {
+                    return stackFrame.thisObject();
+                }
+
+                ObjectReference thisObject = stackFrame.thisObject();
+                if (thisObject != null) {
+                    ReferenceType classType = thisObject.referenceType();
+                    Map<Field, Value> map = thisObject.getValues(classType.allFields());
+                    for (Map.Entry<Field, Value> entry : map.entrySet()) {
+                        Value value = entry.getValue();
+                        if (entry.getKey().name().equals(name)) {
+                            if (value instanceof ObjectReference) {
+                                return (ObjectReference) value;
+                            }
+                        }
+                    }
+                }
+
+                List<LocalVariable> localVariables = stackFrame.visibleVariables();
+                for (LocalVariable localVariable : localVariables) {
+                    if (localVariable.name().equals(name)) {
+                        Value value = stackFrame.getValue(localVariable);
+                        if (value instanceof ObjectReference) {
+                            return (ObjectReference) value;
+                        }
+                    }
+                }
+
+                return null;
+            } catch (IncompatibleThreadStateException | AbsentInformationException e) {
+                Tracker.error(e);
+                return null;
+            }
+        }
+
+        private List<Value> getArguments(Method method, Object[] arguments) {
+            List<Value> values = new ArrayList<>();
+
+            try {
+                List<LocalVariable> variables = method.arguments();
+                for (int i = 0; i < arguments.length; ++i) {
+                    if (arguments[i] instanceof ObjectReference) {
+                        values.add((ObjectReference) arguments[i]);
+                        continue;
+                    }
+
+                    LocalVariable variable = variables.get(i);
+                    Type type = variable.type();
+                    if (type instanceof BooleanType) {
+                        values.add(vm.mirrorOf((boolean) arguments[i]));
+                    } else if (type instanceof ByteType) {
+                        values.add(vm.mirrorOf((byte) arguments[i]));
+                    } else if (type instanceof CharType) {
+                        values.add(vm.mirrorOf((char) arguments[i]));
+                    } else if (type instanceof ShortType) {
+                        values.add(vm.mirrorOf((short) arguments[i]));
+                    } else if (type instanceof IntegerType) {
+                        values.add(vm.mirrorOf((int) arguments[i]));
+                    } else if (type instanceof LongType) {
+                        values.add(vm.mirrorOf((long) arguments[i]));
+                    } else if (type instanceof FloatType) {
+                        values.add(vm.mirrorOf((float) arguments[i]));
+                    } else if (type instanceof DoubleType) {
+                        values.add(vm.mirrorOf((double) arguments[i]));
+                    } else {
+                        values.add(null);
+                    }
+                }
+            } catch (AbsentInformationException | ClassNotLoadedException e) {
+                Tracker.error(e);
+            }
+
+            return values;
         }
     }
 }
