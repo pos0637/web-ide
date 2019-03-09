@@ -42,6 +42,14 @@ public interface IDebugger {
     String getSymbolValue(String sourcePath, int lineNumber, int columnNumber);
 
     /**
+     * 执行表达式
+     *
+     * @param expression 表达式
+     * @return 结果
+     */
+    Object evaluation(String expression);
+
+    /**
      * 获取断点
      *
      * @return 断点列表

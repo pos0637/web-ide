@@ -35,6 +35,11 @@ public class DebuggerController {
         return new RestResponse(HttpStatus.OK, null, debugger.getSymbolValue(sourcePath, lineNumber, columnNumber));
     }
 
+    @GetMapping("/evaluation")
+    public RestResponse evaluation(@RequestParam String expression) {
+        return new RestResponse(HttpStatus.OK, null, debugger.evaluation(expression));
+    }
+
     @GetMapping("/codes")
     public RestResponse getCode(@RequestParam String sourcePath) {
         return new RestResponse(HttpStatus.OK, null, debugger.getCode(sourcePath));

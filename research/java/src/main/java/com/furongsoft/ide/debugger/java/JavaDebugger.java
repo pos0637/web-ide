@@ -96,17 +96,17 @@ public class JavaDebugger extends Debugger implements Runnable {
     }
 
     @Override
-    public void analyze() {
+    public synchronized void analyze() {
         analyzer.analyze(ROOT_PATH);
     }
 
     @Override
-    public Symbol getSymbol(String sourcePath, int lineNumber, int columnNumber) {
+    public synchronized Symbol getSymbol(String sourcePath, int lineNumber, int columnNumber) {
         return analyzer.getSymbol(sourcePath, lineNumber, columnNumber);
     }
 
     @Override
-    public String getSymbolValue(String sourcePath, int lineNumber, int columnNumber) {
+    public synchronized String getSymbolValue(String sourcePath, int lineNumber, int columnNumber) {
         if (variables == null) {
             return null;
         }
@@ -124,10 +124,38 @@ public class JavaDebugger extends Debugger implements Runnable {
         return result.get().getValue();
     }
 
+    /**
+     * 执行表达式
+     *
+     * @param expression 表达式
+     * @return 结果
+     */
+    @Override
+    public synchronized Object evaluation(String expression) {
+        if (debuggerState != DebuggerState.Breaking) {
+            return false;
+        }
+
+        ScriptEngine engine = new ScriptEngineManager().getEngineByName("JavaScript");
+        Object result = null;
+
+        try {
+            engine.put("__context__", new Invoker());
+            engine.eval("" +
+                    "load('nashorn:mozilla_compat.js');\n" +
+                    "importPackage(com.furongsoft.ide.debugger.java);\n" +
+                    String.format("__result__ = %s;", prepareExpression(expression)));
+            result = engine.get("__result__");
+        } catch (Exception e) {
+            Tracker.error(e);
+        }
+
+        return result;
+    }
+
     @Override
     public synchronized boolean addBreakpoint(Breakpoint breakpoint) {
-        String sourcePath = breakpoint.getSourcePath();
-        breakpoint.setClassName(sourcePath.substring(0, sourcePath.length() - ".java".length()));
+        setBreakpointClassName(breakpoint);
         if (!super.addBreakpoint(breakpoint)) {
             return false;
         }
@@ -137,6 +165,7 @@ public class JavaDebugger extends Debugger implements Runnable {
 
     @Override
     public synchronized boolean deleteBreakpoint(Breakpoint breakpoint) {
+        setBreakpointClassName(breakpoint);
         if (!super.deleteBreakpoint(breakpoint)) {
             return false;
         }
@@ -581,6 +610,18 @@ public class JavaDebugger extends Debugger implements Runnable {
     }
 
     /**
+     * 设置断点类型名称
+     *
+     * @param breakpoint 断点
+     */
+    private void setBreakpointClassName(Breakpoint breakpoint) {
+        String sourcePath = breakpoint.getSourcePath();
+        String className = sourcePath.substring(0, sourcePath.length() - ".java".length());
+        className = className.replace('/', '.');
+        breakpoint.setClassName(className);
+    }
+
+    /**
      * 处理事件
      *
      * @param event 事件
@@ -621,7 +662,7 @@ public class JavaDebugger extends Debugger implements Runnable {
                 Location location = frame.location();
                 Method method = location.method();
                 Tracker.info(String.format("=========== frame -> %s (%s:%s)", method.name(), location.sourcePath(), location.lineNumber()));
-                locations.add(new com.furongsoft.ide.debugger.entities.Location(location.sourcePath(), location.lineNumber(), method.name()));
+                locations.add(new com.furongsoft.ide.debugger.entities.Location(location.sourcePath().replace('\\', '/'), location.lineNumber(), method.name()));
             }
 
             StackFrame stackFrame = threadReference.frame(0);
@@ -688,30 +729,6 @@ public class JavaDebugger extends Debugger implements Runnable {
     private String getSymbolKey(ReferenceType classType, Field field) {
         // member: [class signature].[name])[signature]
         return String.format("%s.%s)%s", classType.signature(), field.name(), field.signature());
-    }
-
-    /**
-     * 执行表达式
-     *
-     * @param expression 表达式
-     * @return 结果
-     */
-    private Object evaluation(String expression) {
-        ScriptEngine engine = new ScriptEngineManager().getEngineByName("JavaScript");
-        Object result = null;
-
-        try {
-            engine.put("__context__", new Invoker());
-            engine.eval("" +
-                    "load('nashorn:mozilla_compat.js');\n" +
-                    "importPackage(com.furongsoft.ide.debugger.java);\n" +
-                    String.format("__result__ = %s;", prepareExpression(expression)));
-            result = engine.get("__result__");
-        } catch (Exception e) {
-            Tracker.error(e);
-        }
-
-        return result;
     }
 
     /**
@@ -825,10 +842,12 @@ public class JavaDebugger extends Debugger implements Runnable {
 
         public Object invoke(String name, Object... arguments) throws Exception {
             if (objectReference == null) {
-                objectReference = getObjectReference(name);
-                if (objectReference == null) {
+                Value value = getObjectReference(name);
+                if (!(value instanceof ObjectReference)) {
                     throw new Exception("variable not found!");
                 }
+
+                objectReference = (ObjectReference) value;
             } else {
                 List<Method> methods = objectReference.referenceType().methods();
                 Optional<Method> method = methods.stream().filter(m -> m.name().equals(name)).findFirst();
@@ -849,16 +868,25 @@ public class JavaDebugger extends Debugger implements Runnable {
         }
 
         public Object invoke2(String name, Object... arguments) throws Exception {
-            List<Method> methods = objectReference.referenceType().methods();
-            Optional<Method> method = methods.stream().filter(m -> m.name().equals(name)).findFirst();
-            if (method.isEmpty()) {
-                throw new Exception("method not found!");
+            if (objectReference == null) {
+                Value value = getObjectReference(name);
+                if (value == null) {
+                    throw new Exception("variable not found!");
+                }
+
+                return getRealValue(value);
+            } else {
+                List<Method> methods = objectReference.referenceType().methods();
+                Optional<Method> method = methods.stream().filter(m -> m.name().equals(name)).findFirst();
+                if (method.isEmpty()) {
+                    throw new Exception("method not found!");
+                }
+
+                List<Value> values = getArguments(method.get(), arguments);
+                Value value = objectReference.invokeMethod(JavaDebugger.this.threadReference, method.get(), values, ObjectReference.INVOKE_SINGLE_THREADED);
+
+                return getRealValue(value);
             }
-
-            List<Value> values = getArguments(method.get(), arguments);
-            Value value = objectReference.invokeMethod(JavaDebugger.this.threadReference, method.get(), values, ObjectReference.INVOKE_SINGLE_THREADED);
-
-            return value;
         }
 
         /**
@@ -867,7 +895,7 @@ public class JavaDebugger extends Debugger implements Runnable {
          * @param name 对象名称
          * @return 对象引用
          */
-        private ObjectReference getObjectReference(String name) {
+        private Value getObjectReference(String name) {
             ThreadReference threadReference;
             synchronized (this) {
                 threadReference = JavaDebugger.this.threadReference;
@@ -888,11 +916,8 @@ public class JavaDebugger extends Debugger implements Runnable {
                     ReferenceType classType = thisObject.referenceType();
                     Map<Field, Value> map = thisObject.getValues(classType.allFields());
                     for (Map.Entry<Field, Value> entry : map.entrySet()) {
-                        Value value = entry.getValue();
                         if (entry.getKey().name().equals(name)) {
-                            if (value instanceof ObjectReference) {
-                                return (ObjectReference) value;
-                            }
+                            return entry.getValue();
                         }
                     }
                 }
@@ -900,10 +925,7 @@ public class JavaDebugger extends Debugger implements Runnable {
                 List<LocalVariable> localVariables = stackFrame.visibleVariables();
                 for (LocalVariable localVariable : localVariables) {
                     if (localVariable.name().equals(name)) {
-                        Value value = stackFrame.getValue(localVariable);
-                        if (value instanceof ObjectReference) {
-                            return (ObjectReference) value;
-                        }
+                        return stackFrame.getValue(localVariable);
                     }
                 }
 
@@ -952,6 +974,29 @@ public class JavaDebugger extends Debugger implements Runnable {
             }
 
             return values;
+        }
+
+        private Object getRealValue(Value value) {
+            Type type = value.type();
+            if (type instanceof BooleanType) {
+                return Boolean.parseBoolean(value.toString());
+            } else if (type instanceof ByteType) {
+                return Byte.parseByte(value.toString());
+            } else if (type instanceof CharType) {
+                return value.toString().charAt(0);
+            } else if (type instanceof ShortType) {
+                return Short.parseShort(value.toString());
+            } else if (type instanceof IntegerType) {
+                return Integer.parseInt(value.toString());
+            } else if (type instanceof LongType) {
+                return Long.parseLong(value.toString());
+            } else if (type instanceof FloatType) {
+                return Float.parseFloat(value.toString());
+            } else if (type instanceof DoubleType) {
+                return Double.parseDouble(value.toString());
+            } else {
+                return value.toString();
+            }
         }
     }
 }
