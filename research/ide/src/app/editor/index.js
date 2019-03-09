@@ -1,10 +1,10 @@
 import React from 'react';
 import PropTypes from 'prop-types';
-import { Tabs, List, Row, Col } from 'antd';
+import { Tabs, List, Row, Col, Input, Search } from 'antd';
 import { Controlled as CodeMirror } from 'react-codemirror2';
 import BaseComponent from '~/components/baseComponent';
 import Button from '~/components/button';
-import { analyze, getSymbol, getSymbolValue, getCode, getInformation, getConsole, addBreakpoint, deleteBreakpoint } from '~/api/v1/debugger';
+import { analyze, getSymbol, getSymbolValue, evaluation, getCode, getInformation, getConsole, addBreakpoint, deleteBreakpoint } from '~/api/v1/debugger';
 
 require('codemirror/lib/codemirror.css');
 require('codemirror/theme/material.css');
@@ -32,7 +32,8 @@ export default class Editor extends BaseComponent {
         stack: [],
         variables: [],
         output: [],
-        breakpoints: []
+        breakpoints: [],
+        expressionValue: null
     }
 
     /**
@@ -47,7 +48,7 @@ export default class Editor extends BaseComponent {
      *
      * @memberof Editor
      */
-    sourcePaths = ['Test.java']
+    sourcePaths = ['Test.java', 'sub/Test1.java']
 
     /**
      * 当前编辑器索引
@@ -242,7 +243,7 @@ export default class Editor extends BaseComponent {
                 <div style={{ width: '100%', height: '100%' }}>
                     <div style={{ marginTop: '10px' }}>
                         <Tabs type="card" defaultActiveKey="1" onChange={activeKey => { this.tabIndex = activeKey; }}>
-                            <Tabs.TabPane tab="Test.java" key="1">
+                            <Tabs.TabPane tab={this.sourcePaths[0]} key="1">
                                 <CodeMirror
                                     editorDidMount={editor => {
                                         const cm = editor;
@@ -264,13 +265,48 @@ export default class Editor extends BaseComponent {
                                     onGutterClick={(cm, n) => this._onGutterClick(this.sourcePaths[0], cm, n)}
                                 />
                             </Tabs.TabPane>
-                            <Tabs.TabPane tab="Test1.java" key="2" />
+                            <Tabs.TabPane tab={this.sourcePaths[1]} key="2">
+                                <CodeMirror
+                                    editorDidMount={editor => {
+                                        const cm = editor;
+                                        this.cms[1] = cm;
+                                        cm.getWrapperElement().addEventListener('mousemove', e => {
+                                            const info = cm.coordsChar({ left: e.pageX, top: e.pageY });
+                                            if ((info.line !== this.lineNumber) || (info.ch !== this.columnNumber)) {
+                                                this.lineNumber = info.line;
+                                                this.columnNumber = info.ch;
+                                                this.timer3 && clearTimeout(this.timer3);
+                                                this._getSymbol(this.sourcePaths[1], info.line + 1, info.ch + 1);
+                                            }
+                                        });
+                                    }}
+                                    value={this.state.codes[1]}
+                                    options={options}
+                                    onBeforeChange={(editor, data, value) => {
+                                    }}
+                                    onGutterClick={(cm, n) => this._onGutterClick(this.sourcePaths[1], cm, n)}
+                                />
+                            </Tabs.TabPane>
                             <Tabs.TabPane tab="Test2.java" key="3" />
                         </Tabs>
                     </div>
                     <div style={{ marginTop: '10px' }}>
                         <Tabs type="card" defaultActiveKey="1">
                             <Tabs.TabPane tab="Debug" key="1">
+                                <Row>
+                                    <Col span={6}>
+                                        <Input.Search
+                                            placeholder="请输入表达式"
+                                            enterButton="执行"
+                                            disabled={this.state.state !== 'Breaking'}
+                                            onSearch={value => this._evaluation(value)}
+                                        />
+                                    </Col>
+                                    <Col span={2}>
+                                        <Input placeholder="执行结果" disabled value={this.state.state !== 'Breaking' ? null : this.state.expressionValue} />
+                                    </Col>
+                                </Row>
+                                <Row style={{ height: 4 }} />
                                 <Row>
                                     <Col span={4}>
                                         <List
@@ -376,5 +412,9 @@ export default class Editor extends BaseComponent {
             });
             this.timer3 = null;
         }, 1000);
+    }
+
+    _evaluation(expression) {
+        evaluation(expression, value => this.setState({ expressionValue: value }));
     }
 }

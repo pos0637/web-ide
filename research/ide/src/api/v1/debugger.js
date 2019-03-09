@@ -40,6 +40,17 @@ export function getSymbolValue(sourcePath, lineNumber, columnNumber, succ, err) 
 }
 
 /**
+ * 执行表达式
+ * 
+ * @param {*} expression 表达式
+ * @param {*} succ 成功处理函数
+ * @param {*} err 错误处理函数
+ */
+export function evaluation(expression, succ, err) {
+    request('/api/v1/debugger/evaluation', 'get', { expression: expression }, succ, err);
+}
+
+/**
  * 获取代码
  *
  * @export
