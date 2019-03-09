@@ -14,6 +14,8 @@ import com.sun.jdi.connect.IllegalConnectorArgumentsException;
 import com.sun.jdi.connect.Transport;
 import com.sun.jdi.event.*;
 import com.sun.jdi.request.*;
+import lombok.AllArgsConstructor;
+import lombok.NoArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import javax.script.ScriptEngine;
@@ -837,6 +839,8 @@ public class JavaDebugger extends Debugger implements Runnable {
         return -1;
     }
 
+    @NoArgsConstructor
+    @AllArgsConstructor
     public class Invoker {
         private ObjectReference objectReference;
 
@@ -849,19 +853,26 @@ public class JavaDebugger extends Debugger implements Runnable {
 
                 objectReference = (ObjectReference) value;
             } else {
+                List<Field> fields = objectReference.referenceType().allFields();
+                Optional<Field> field = fields.stream().filter(f -> f.name().equals(name)).findFirst();
+                if (field.isPresent()) {
+                    Value value = objectReference.getValue(field.get());
+                    return new Invoker((ObjectReference) value);
+                }
+
                 List<Method> methods = objectReference.referenceType().methods();
                 Optional<Method> method = methods.stream().filter(m -> m.name().equals(name)).findFirst();
-                if (method.isEmpty()) {
-                    throw new Exception("method not found!");
+                if (method.isPresent()) {
+                    List<Value> values = getArguments(method.get(), arguments);
+                    Value value = objectReference.invokeMethod(JavaDebugger.this.threadReference, method.get(), values, ObjectReference.INVOKE_SINGLE_THREADED);
+                    if (!(value instanceof ObjectReference)) {
+                        throw new Exception("return value invalid!");
+                    }
+
+                    return new Invoker((ObjectReference) value);
                 }
 
-                List<Value> values = getArguments(method.get(), arguments);
-                Value value = objectReference.invokeMethod(JavaDebugger.this.threadReference, method.get(), values, ObjectReference.INVOKE_SINGLE_THREADED);
-                if (!(value instanceof ObjectReference)) {
-                    throw new Exception("return value invalid!");
-                }
-
-                objectReference = (ObjectReference) value;
+                throw new Exception("method not found!");
             }
 
             return this;
@@ -876,16 +887,22 @@ public class JavaDebugger extends Debugger implements Runnable {
 
                 return getRealValue(value);
             } else {
-                List<Method> methods = objectReference.referenceType().methods();
-                Optional<Method> method = methods.stream().filter(m -> m.name().equals(name)).findFirst();
-                if (method.isEmpty()) {
-                    throw new Exception("method not found!");
+                List<Field> fields = objectReference.referenceType().allFields();
+                Optional<Field> field = fields.stream().filter(f -> f.name().equals(name)).findFirst();
+                if (field.isPresent()) {
+                    Value value = objectReference.getValue(field.get());
+                    return getRealValue(value);
                 }
 
-                List<Value> values = getArguments(method.get(), arguments);
-                Value value = objectReference.invokeMethod(JavaDebugger.this.threadReference, method.get(), values, ObjectReference.INVOKE_SINGLE_THREADED);
+                List<Method> methods = objectReference.referenceType().methods();
+                Optional<Method> method = methods.stream().filter(m -> m.name().equals(name)).findFirst();
+                if (method.isPresent()) {
+                    List<Value> values = getArguments(method.get(), arguments);
+                    Value value = objectReference.invokeMethod(JavaDebugger.this.threadReference, method.get(), values, ObjectReference.INVOKE_SINGLE_THREADED);
+                    return getRealValue(value);
+                }
 
-                return getRealValue(value);
+                throw new Exception("method not found!");
             }
         }
 
@@ -995,7 +1012,12 @@ public class JavaDebugger extends Debugger implements Runnable {
             } else if (type instanceof DoubleType) {
                 return Double.parseDouble(value.toString());
             } else {
-                return value.toString();
+                if (type.name().equals("java.lang.String")) {
+                    String string = value.toString();
+                    return string.substring(1, string.length() - 1);
+                } else {
+                    return value.toString();
+                }
             }
         }
     }
