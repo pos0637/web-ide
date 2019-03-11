@@ -112,8 +112,19 @@ public class Context {
         String key = symbol.getKey();
         key = key.replace("\\", "/");
 
-        String path = sourcePath.substring(0, sourcePath.length() - ".java".length());
-        key = key.replace(path, "");
+        if (key.length() > 2) {
+            if (key.charAt(0) == 'L') {
+                if (key.charAt(1) == '/') {
+                    int pos2 = key.indexOf('~');
+                    key = 'L' + key.substring(pos2, key.length() - 1);
+                } else if (key.indexOf('~') > 0) {
+                    int pos1 = key.indexOf('/');
+                    int pos2 = key.indexOf('~');
+                    key = key.substring(0, pos1 + 1) + key.substring(pos2, key.length() - 1);
+                }
+            }
+        }
+
         key = key.replace("/~", ".");
         key = key.replace("~", "");
 

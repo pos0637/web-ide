@@ -103,8 +103,8 @@ public class JavaDebugger extends Debugger implements Runnable {
     }
 
     @Override
-    public synchronized Symbol getSymbol(String sourcePath, int lineNumber, int columnNumber) {
-        return analyzer.getSymbol(sourcePath, lineNumber, columnNumber);
+    public synchronized Symbol getDeclarationSymbol(String sourcePath, int lineNumber, int columnNumber) {
+        return analyzer.getDeclarationSymbol(sourcePath, lineNumber, columnNumber);
     }
 
     @Override

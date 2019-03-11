@@ -25,9 +25,9 @@ public class DebuggerController {
         return new RestResponse(HttpStatus.OK);
     }
 
-    @GetMapping("/symbols")
-    public RestResponse getSymbol(@RequestParam String sourcePath, @RequestParam int lineNumber, @RequestParam int columnNumber) {
-        return new RestResponse(HttpStatus.OK, null, debugger.getSymbol(sourcePath, lineNumber, columnNumber));
+    @GetMapping("/declarationSymbols")
+    public RestResponse getDeclarationSymbol(@RequestParam String sourcePath, @RequestParam int lineNumber, @RequestParam int columnNumber) {
+        return new RestResponse(HttpStatus.OK, null, debugger.getDeclarationSymbol(sourcePath, lineNumber, columnNumber));
     }
 
     @GetMapping("/symbolValues")

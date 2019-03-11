@@ -22,14 +22,14 @@ public interface IDebugger {
     void analyze();
 
     /**
-     * 获取符号
+     * 获取定义符号
      *
      * @param sourcePath   源代码路径
      * @param lineNumber   行号
      * @param columnNumber 列号
-     * @return 符号
+     * @return 定义符号
      */
-    Symbol getSymbol(String sourcePath, int lineNumber, int columnNumber);
+    Symbol getDeclarationSymbol(String sourcePath, int lineNumber, int columnNumber);
 
     /**
      * 获取符号值

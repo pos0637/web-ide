@@ -1,5 +1,6 @@
 package com.furongsoft.ide.debugger.entities;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -95,12 +96,19 @@ public class Symbol {
      */
     private int columnNumber;
 
-    public Symbol(int type, int subType, String name, String key, int position, int length) {
+    /**
+     * 数据
+     */
+    @JsonIgnore
+    private Object data;
+
+    public Symbol(int type, int subType, String name, String key, int position, int length, Object data) {
         this.type = type;
         this.subType = subType;
         this.name = name;
         this.key = key;
         this.position = position;
         this.length = length;
+        this.data = data;
     }
 }

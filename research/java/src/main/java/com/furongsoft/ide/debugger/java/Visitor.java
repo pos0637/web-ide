@@ -34,7 +34,7 @@ public class Visitor extends ASTVisitor {
             VariableDeclaration v = (VariableDeclaration) obj;
             IBinding binding = v.resolveBinding();
             memberVariables.put(binding, v);
-            context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_DECLARATION, Symbol.SYMBOL_SUB_TYPE_MEMBER_VARIABLE, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength()));
+            context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_DECLARATION, Symbol.SYMBOL_SUB_TYPE_MEMBER_VARIABLE, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength(), binding));
             Tracker.info(String.format("FieldDeclaration: %s, (%d)", v.getName(), v.getStartPosition()));
         }
 
@@ -44,14 +44,14 @@ public class Visitor extends ASTVisitor {
     @Override
     public boolean visit(MethodDeclaration node) {
         IBinding binding = node.resolveBinding();
-        context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_DECLARATION, Symbol.SYMBOL_SUB_TYPE_METHOD, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength()));
+        context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_DECLARATION, Symbol.SYMBOL_SUB_TYPE_METHOD, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength(), binding));
         Tracker.info(String.format("MethodDeclaration: %s, (%d)", node.getName(), node.getStartPosition()));
 
         node.parameters().forEach(n -> {
             SingleVariableDeclaration v = (SingleVariableDeclaration) n;
             IBinding binding1 = v.resolveBinding();
             localVariables.put(binding1, v);
-            context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_DECLARATION, Symbol.SYMBOL_SUB_TYPE_LOCAL_VARIABLE, binding1.getName(), binding1.getKey(), v.getStartPosition(), v.getLength()));
+            context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_DECLARATION, Symbol.SYMBOL_SUB_TYPE_LOCAL_VARIABLE, binding1.getName(), binding1.getKey(), v.getStartPosition(), v.getLength(), binding));
             Tracker.info(String.format("MethodParametersDeclaration: %s, (%d)", v.getName(), v.getStartPosition()));
         });
 
@@ -66,7 +66,7 @@ public class Visitor extends ASTVisitor {
             return super.visit(node);
         }
 
-        context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_REFS, Symbol.SYMBOL_SUB_TYPE_METHOD, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength()));
+        context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_REFS, Symbol.SYMBOL_SUB_TYPE_METHOD, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength(), binding));
         Tracker.info(String.format("MethodInvocation: %s, (%d)", node.getName(), node.getStartPosition()));
         return super.visit(node);
     }
@@ -74,7 +74,7 @@ public class Visitor extends ASTVisitor {
     @Override
     public boolean visit(TypeDeclaration node) {
         IBinding binding = node.resolveBinding();
-        context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_DECLARATION, Symbol.SYMBOL_SUB_TYPE_TYPE, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength()));
+        context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_DECLARATION, Symbol.SYMBOL_SUB_TYPE_TYPE, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength(), binding));
         Tracker.info(String.format("TypeDeclaration: %s, (%d)", node.getName(), node.getStartPosition()));
         return super.visit(node);
     }
@@ -83,9 +83,10 @@ public class Visitor extends ASTVisitor {
     public boolean visit(VariableDeclarationStatement node) {
         for (Object obj : node.fragments()) {
             VariableDeclaration v = (VariableDeclaration) obj;
-            IBinding binding = v.resolveBinding();
+            IVariableBinding binding = v.resolveBinding();
             localVariables.put(binding, v);
-            context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_DECLARATION, Symbol.SYMBOL_SUB_TYPE_LOCAL_VARIABLE, binding.getName(), binding.getKey(), v.getStartPosition(), v.getLength()));
+            context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_REFS, Symbol.SYMBOL_SUB_TYPE_TYPE, binding.getType().getName(), binding.getType().getKey(), node.getStartPosition(), node.getLength(), binding));
+            context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_DECLARATION, Symbol.SYMBOL_SUB_TYPE_LOCAL_VARIABLE, binding.getName(), binding.getKey(), v.getStartPosition(), v.getLength(), binding));
             Tracker.info(String.format("VariableDeclaration: %s, (%d)", v.getName(), v.getStartPosition()));
         }
 
@@ -102,11 +103,11 @@ public class Visitor extends ASTVisitor {
 
         if (memberVariables.containsKey(binding)) {
             VariableDeclaration v = memberVariables.get(binding);
-            context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_REFS, Symbol.SYMBOL_SUB_TYPE_MEMBER_VARIABLE, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength()));
+            context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_REFS, Symbol.SYMBOL_SUB_TYPE_MEMBER_VARIABLE, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength(), binding));
             Tracker.info(String.format("SimpleName(member): %s, (%d)", v.getName(), v.getStartPosition()));
         } else if (localVariables.containsKey(binding)) {
             VariableDeclaration v = localVariables.get(binding);
-            context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_REFS, Symbol.SYMBOL_SUB_TYPE_LOCAL_VARIABLE, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength()));
+            context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_REFS, Symbol.SYMBOL_SUB_TYPE_LOCAL_VARIABLE, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength(), binding));
             Tracker.info(String.format("SimpleName(local): %s, (%d)", v.getName(), v.getStartPosition()));
         } else {
             Tracker.info(String.format("SimpleName: %s, (%d)", binding.getName(), node.getStartPosition()));
