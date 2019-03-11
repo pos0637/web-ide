@@ -15,8 +15,6 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class Visitor extends ASTVisitor {
     private Context context;
-    private ConcurrentHashMap<IBinding, VariableDeclaration> memberVariables = new ConcurrentHashMap<>();
-    private ConcurrentHashMap<IBinding, VariableDeclaration> localVariables = new ConcurrentHashMap<>();
 
     public Visitor(Context context) {
         this.context = context;
@@ -33,7 +31,7 @@ public class Visitor extends ASTVisitor {
         for (Object obj : node.fragments()) {
             VariableDeclaration v = (VariableDeclaration) obj;
             IBinding binding = v.resolveBinding();
-            memberVariables.put(binding, v);
+            context.getMemberVariables().put(binding.getKey(), v);
             context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_DECLARATION, Symbol.SYMBOL_SUB_TYPE_MEMBER_VARIABLE, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength(), binding));
             Tracker.info(String.format("FieldDeclaration: %s, (%d)", v.getName(), v.getStartPosition()));
         }
@@ -50,7 +48,7 @@ public class Visitor extends ASTVisitor {
         node.parameters().forEach(n -> {
             SingleVariableDeclaration v = (SingleVariableDeclaration) n;
             IBinding binding1 = v.resolveBinding();
-            localVariables.put(binding1, v);
+            context.getLocalVariables().put(binding1.getKey(), v);
             context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_DECLARATION, Symbol.SYMBOL_SUB_TYPE_LOCAL_VARIABLE, binding1.getName(), binding1.getKey(), v.getStartPosition(), v.getLength(), binding));
             Tracker.info(String.format("MethodParametersDeclaration: %s, (%d)", v.getName(), v.getStartPosition()));
         });
@@ -84,7 +82,7 @@ public class Visitor extends ASTVisitor {
         for (Object obj : node.fragments()) {
             VariableDeclaration v = (VariableDeclaration) obj;
             IVariableBinding binding = v.resolveBinding();
-            localVariables.put(binding, v);
+            context.getLocalVariables().put(binding.getKey(), v);
             context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_REFS, Symbol.SYMBOL_SUB_TYPE_TYPE, binding.getType().getName(), binding.getType().getKey(), node.getStartPosition(), node.getLength(), binding));
             context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_DECLARATION, Symbol.SYMBOL_SUB_TYPE_LOCAL_VARIABLE, binding.getName(), binding.getKey(), v.getStartPosition(), v.getLength(), binding));
             Tracker.info(String.format("VariableDeclaration: %s, (%d)", v.getName(), v.getStartPosition()));
@@ -101,17 +99,7 @@ public class Visitor extends ASTVisitor {
             return super.visit(node);
         }
 
-        if (memberVariables.containsKey(binding)) {
-            VariableDeclaration v = memberVariables.get(binding);
-            context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_REFS, Symbol.SYMBOL_SUB_TYPE_MEMBER_VARIABLE, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength(), binding));
-            Tracker.info(String.format("SimpleName(member): %s, (%d)", v.getName(), v.getStartPosition()));
-        } else if (localVariables.containsKey(binding)) {
-            VariableDeclaration v = localVariables.get(binding);
-            context.addSymbol(new Symbol(Symbol.SYMBOL_TYPE_REFS, Symbol.SYMBOL_SUB_TYPE_LOCAL_VARIABLE, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength(), binding));
-            Tracker.info(String.format("SimpleName(local): %s, (%d)", v.getName(), v.getStartPosition()));
-        } else {
-            Tracker.info(String.format("SimpleName: %s, (%d)", binding.getName(), node.getStartPosition()));
-        }
+        context.getSimpleNames().add(node);
 
         return super.visit(node);
     }

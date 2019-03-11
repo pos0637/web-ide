@@ -2,10 +2,7 @@ package com.furongsoft.ide.debugger.java;
 
 import com.furongsoft.core.misc.Tracker;
 import com.furongsoft.ide.debugger.entities.Symbol;
-import org.eclipse.jdt.core.dom.AST;
-import org.eclipse.jdt.core.dom.ASTParser;
-import org.eclipse.jdt.core.dom.CompilationUnit;
-import org.eclipse.jdt.core.dom.FileASTRequestor;
+import org.eclipse.jdt.core.dom.*;
 
 import java.io.File;
 import java.io.IOException;
@@ -67,6 +64,7 @@ public class Analyzer {
         parser.setKind(ASTParser.K_COMPILATION_UNIT);
         parser.setEnvironment(new String[0], new String[0], null, true);
 
+        context = new Context();
         FileASTRequestor requestor = new FileASTRequestor() {
             @Override
             public void acceptAST(String sourceFilePath, CompilationUnit cu) {
@@ -82,6 +80,7 @@ public class Analyzer {
 
         compilationUnits.clear();
         parser.createASTs(files.toArray(new String[files.size()]), encodings.toArray(new String[encodings.size()]), bindingKeys, requestor, null);
+        context.linkSymbols();
     }
 
     /**

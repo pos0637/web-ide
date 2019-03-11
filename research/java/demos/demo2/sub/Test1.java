@@ -1,7 +1,7 @@
 package sub;
 
 public class Test1 {
-    public String a = "abc";
+    public String axx = "abc";
 
     public void foo() {
         System.out.println("Test1:foo");

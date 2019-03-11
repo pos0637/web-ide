@@ -12,7 +12,7 @@ public class Test {
 
         Test1 test1 = new Test1();
         test1.foo();
-        System.out.println(test1.a);
+        System.out.println(test1.axx);
     }
 
     public void bar(int a, int b) {

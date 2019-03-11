@@ -1,9 +1,13 @@
 package com.furongsoft.ide.debugger.java;
 
+import com.furongsoft.core.misc.Tracker;
 import com.furongsoft.ide.debugger.entities.Symbol;
 import lombok.Getter;
 import lombok.Setter;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 
 import java.util.Comparator;
 import java.util.LinkedList;
@@ -43,6 +47,29 @@ public class Context {
      * 符号引用表
      */
     private ConcurrentHashMap<String, List<Symbol>> symbols = new ConcurrentHashMap<>();
+
+    private ConcurrentHashMap<String, VariableDeclaration> memberVariables = new ConcurrentHashMap<>();
+
+    private ConcurrentHashMap<String, VariableDeclaration> localVariables = new ConcurrentHashMap<>();
+
+    private List<SimpleName> simpleNames = new LinkedList<>();
+
+    public void linkSymbols() {
+        for (SimpleName node : simpleNames) {
+            IBinding binding = node.resolveBinding();
+            if (memberVariables.containsKey(binding.getKey())) {
+                VariableDeclaration v = memberVariables.get(binding.getKey());
+                addSymbol(new Symbol(Symbol.SYMBOL_TYPE_REFS, Symbol.SYMBOL_SUB_TYPE_MEMBER_VARIABLE, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength(), binding));
+                Tracker.info(String.format("SimpleName(member): %s, (%d)", v.getName(), v.getStartPosition()));
+            } else if (localVariables.containsKey(binding.getKey())) {
+                VariableDeclaration v = localVariables.get(binding.getKey());
+                addSymbol(new Symbol(Symbol.SYMBOL_TYPE_REFS, Symbol.SYMBOL_SUB_TYPE_LOCAL_VARIABLE, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength(), binding));
+                Tracker.info(String.format("SimpleName(local): %s, (%d)", v.getName(), v.getStartPosition()));
+            } else {
+                Tracker.info(String.format("SimpleName: %s, (%d)", binding.getName(), node.getStartPosition()));
+            }
+        }
+    }
 
     /**
      * 添加符号
