@@ -73,8 +73,10 @@ export default class Editor extends BaseComponent {
             this.sourcePaths.forEach((sourcePath, index) => {
                 getCode(sourcePath, code => {
                     const { codes } = this.state;
-                    codes[index] = code;
-                    this.setState({ codes: Array.from(codes) });
+                    if (!this.state.codes[index]) {
+                        codes[index] = code;
+                        this.setState({ codes: Array.from(codes) });
+                    }
                 });
             });
         }, 2000);
@@ -325,6 +327,7 @@ export default class Editor extends BaseComponent {
                                 }
                                 else {
                                     this.setState({ activeTab: (id + 1).toString() }, () => {
+                                        this.cms[id].focus();
                                         this.cms[id].setCursor({ line: symbol.lineNumber - 1, ch: symbol.columnNumber });
                                     });
                                 }
@@ -338,7 +341,6 @@ export default class Editor extends BaseComponent {
         return (
             <CodeMirror
                 editorDidMount={editor => {
-                    console.log('editorDidMount');
                     const cm = editor;
                     this.cms[tabIndex] = cm;
                     cm.getWrapperElement().addEventListener('mousemove', e => {
