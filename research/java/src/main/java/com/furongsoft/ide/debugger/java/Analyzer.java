@@ -72,6 +72,7 @@ public class Analyzer {
             public void acceptAST(String sourceFilePath, CompilationUnit cu) {
                 sourceFilePath = sourceFilePath.replace('\\', '/');
                 compilationUnits.put(sourceFilePath, cu);
+                context.setRootPath(rootPath);
                 context.setSourcePath(sourceFilePath);
                 context.setCompilationUnit(cu);
                 cu.accept(new Visitor(context));
@@ -114,6 +115,6 @@ public class Analyzer {
             return null;
         }
 
-        return context.getDeclarationSymbol(path, compilationUnits.get(path).getPosition(lineNumber, columnNumber));
+        return context.getDeclarationSymbol(sourcePath, compilationUnits.get(path).getPosition(lineNumber, columnNumber));
     }
 }

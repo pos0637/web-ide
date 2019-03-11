@@ -12,7 +12,7 @@ export function analyze(succ, err) {
 }
 
 /**
- * 获取符号
+ * 获取定义符号
  * 
  * @export
  * @param {*} sourcePath 源代码路径
@@ -21,8 +21,8 @@ export function analyze(succ, err) {
  * @param {*} succ 成功处理函数
  * @param {*} err 错误处理函数
  */
-export function getSymbol(sourcePath, lineNumber, columnNumber, succ, err) {
-    request('/api/v1/debugger/symbols', 'get', { sourcePath: sourcePath, lineNumber: lineNumber, columnNumber: columnNumber }, succ, err);
+export function getDeclarationSymbol(sourcePath, lineNumber, columnNumber, succ, err) {
+    request('/api/v1/debugger/declarationSymbols', 'get', { sourcePath: sourcePath, lineNumber: lineNumber, columnNumber: columnNumber }, succ, err);
 }
 
 /**

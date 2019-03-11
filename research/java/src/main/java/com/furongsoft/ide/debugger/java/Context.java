@@ -20,6 +20,11 @@ import java.util.stream.Collectors;
 @Setter
 public class Context {
     /**
+     * 根目录
+     */
+    private String rootPath;
+
+    /**
      * 源代码路径
      */
     private String sourcePath;
@@ -45,7 +50,7 @@ public class Context {
      * @param symbol 符号
      */
     public void addSymbol(Symbol symbol) {
-        symbol.setSourcePath(sourcePath);
+        symbol.setSourcePath(sourcePath.replace(rootPath + "/", ""));
         symbol.setKey(getSymbolKey(symbol));
         symbol.setLineNumber(compilationUnit.getLineNumber(symbol.getPosition()));
         symbol.setColumnNumber(compilationUnit.getColumnNumber(symbol.getPosition()));
@@ -112,17 +117,10 @@ public class Context {
         String key = symbol.getKey();
         key = key.replace("\\", "/");
 
-        if (key.length() > 2) {
-            if (key.charAt(0) == 'L') {
-                if (key.charAt(1) == '/') {
-                    int pos2 = key.indexOf('~');
-                    key = 'L' + key.substring(pos2, key.length() - 1);
-                } else if (key.indexOf('~') > 0) {
-                    int pos1 = key.indexOf('/');
-                    int pos2 = key.indexOf('~');
-                    key = key.substring(0, pos1 + 1) + key.substring(pos2, key.length() - 1);
-                }
-            }
+        int pos1 = key.indexOf(rootPath);
+        int pos2 = key.indexOf('~');
+        if (pos2 >= 0) {
+            key = key.substring(0, pos1) + key.substring(pos2);
         }
 
         key = key.replace("/~", ".");

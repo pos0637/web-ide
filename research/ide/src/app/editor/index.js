@@ -4,7 +4,7 @@ import { Tabs, List, Row, Col, Input, Search } from 'antd';
 import { Controlled as CodeMirror } from 'react-codemirror2';
 import BaseComponent from '~/components/baseComponent';
 import Button from '~/components/button';
-import { analyze, getSymbol, getSymbolValue, evaluation, getCode, getInformation, getConsole, addBreakpoint, deleteBreakpoint } from '~/api/v1/debugger';
+import { getDeclarationSymbol, getSymbolValue, evaluation, getCode, getInformation, getConsole, addBreakpoint, deleteBreakpoint } from '~/api/v1/debugger';
 
 require('codemirror/lib/codemirror.css');
 require('codemirror/theme/material.css');
@@ -27,13 +27,15 @@ export default class Editor extends BaseComponent {
 
     state = {
         className: 'Test',
+        activeTab: "1",
         codes: [],
         state: 0,
         stack: [],
         variables: [],
         output: [],
         breakpoints: [],
-        expressionValue: null
+        expressionValue: null,
+        hint: null
     }
 
     /**
@@ -49,13 +51,6 @@ export default class Editor extends BaseComponent {
      * @memberof Editor
      */
     sourcePaths = ['Test.java', 'sub/Test1.java']
-
-    /**
-     * 当前编辑器索引
-     *
-     * @memberof Editor
-     */
-    tabIndex = null
 
     /**
      * 当前编辑器行号
@@ -143,15 +138,10 @@ export default class Editor extends BaseComponent {
     }
 
     render() {
-        const options = {
-            mode: 'javascript',
-            theme: 'material',
-            readOnly: true,
-            lineNumbers: true,
-            styleActiveLine: true,
-            styleSelectedText: true,
-            gutters: ['CodeMirror-linenumbers', 'breakpoints']
-        };
+        let hint = null;
+        if (this.state.hint) {
+            hint = <div style={{ position: "fixed", color: "rgba(255, 255, 255, 1)", backgroundColor: "rgba(0, 0, 255, 0.9)", left: this.state.hint.left, top: this.state.hint.top - 30 }}>{this.state.hint.content}</div>;
+        }
 
         return (
             <div style={{ width: '100%', height: '100%', margin: '10px' }}>
@@ -242,50 +232,12 @@ export default class Editor extends BaseComponent {
                 </div>
                 <div style={{ width: '100%', height: '100%' }}>
                     <div style={{ marginTop: '10px' }}>
-                        <Tabs type="card" defaultActiveKey="1" onChange={activeKey => { this.tabIndex = activeKey; }}>
+                        <Tabs type="card" defaultActiveKey="1" activeKey={this.state.activeTab} onChange={activeKey => { this.setState({ activeTab: activeKey }); }}>
                             <Tabs.TabPane tab={this.sourcePaths[0]} key="1">
-                                <CodeMirror
-                                    editorDidMount={editor => {
-                                        const cm = editor;
-                                        this.cms[0] = cm;
-                                        cm.getWrapperElement().addEventListener('mousemove', e => {
-                                            const info = cm.coordsChar({ left: e.pageX, top: e.pageY });
-                                            if ((info.line !== this.lineNumber) || (info.ch !== this.columnNumber)) {
-                                                this.lineNumber = info.line;
-                                                this.columnNumber = info.ch;
-                                                this.timer3 && clearTimeout(this.timer3);
-                                                this._getSymbol(this.sourcePaths[0], info.line + 1, info.ch + 1);
-                                            }
-                                        });
-                                    }}
-                                    value={this.state.codes[0]}
-                                    options={options}
-                                    onBeforeChange={(editor, data, value) => {
-                                    }}
-                                    onGutterClick={(cm, n) => this._onGutterClick(this.sourcePaths[0], cm, n)}
-                                />
+                                {this._getCodeMirror(0)}
                             </Tabs.TabPane>
                             <Tabs.TabPane tab={this.sourcePaths[1]} key="2">
-                                <CodeMirror
-                                    editorDidMount={editor => {
-                                        const cm = editor;
-                                        this.cms[1] = cm;
-                                        cm.getWrapperElement().addEventListener('mousemove', e => {
-                                            const info = cm.coordsChar({ left: e.pageX, top: e.pageY });
-                                            if ((info.line !== this.lineNumber) || (info.ch !== this.columnNumber)) {
-                                                this.lineNumber = info.line;
-                                                this.columnNumber = info.ch;
-                                                this.timer3 && clearTimeout(this.timer3);
-                                                this._getSymbol(this.sourcePaths[1], info.line + 1, info.ch + 1);
-                                            }
-                                        });
-                                    }}
-                                    value={this.state.codes[1]}
-                                    options={options}
-                                    onBeforeChange={(editor, data, value) => {
-                                    }}
-                                    onGutterClick={(cm, n) => this._onGutterClick(this.sourcePaths[1], cm, n)}
-                                />
+                                {this._getCodeMirror(1)}
                             </Tabs.TabPane>
                             <Tabs.TabPane tab="Test2.java" key="3" />
                         </Tabs>
@@ -344,7 +296,74 @@ export default class Editor extends BaseComponent {
                         </Tabs>
                     </div>
                 </div>
+                {hint}
             </div>
+        );
+    }
+
+    _getCodeMirror(tabIndex) {
+        const options = {
+            mode: 'javascript',
+            theme: 'material',
+            autofocus: true,
+            readOnly: true,
+            lineNumbers: true,
+            styleActiveLine: true,
+            styleSelectedText: true,
+            gutters: ['CodeMirror-linenumbers', 'breakpoints'],
+            extraKeys: {
+                F3: cm => {
+                    const info = cm.getCursor();
+                    getDeclarationSymbol(this.sourcePaths[tabIndex], info.line + 1, info.ch + 1, symbol => {
+                        console.log(symbol);
+                        if (symbol) {
+                            // TODO: check symbol.sourcePath
+                            const id = this._getTabIndex(symbol.sourcePath);
+                            if (id >= 0) {
+                                if (id === (parseInt(this.state.activeTab, 10) - 1)) {
+                                    this.cms[id].setCursor({ line: symbol.lineNumber - 1, ch: symbol.columnNumber });
+                                }
+                                else {
+                                    this.setState({ activeTab: (id + 1).toString() }, () => {
+                                        this.cms[id].setCursor({ line: symbol.lineNumber - 1, ch: symbol.columnNumber });
+                                    });
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        };
+
+        return (
+            <CodeMirror
+                editorDidMount={editor => {
+                    console.log('editorDidMount');
+                    const cm = editor;
+                    this.cms[tabIndex] = cm;
+                    cm.getWrapperElement().addEventListener('mousemove', e => {
+                        const info = cm.coordsChar({ left: e.pageX, top: e.pageY });
+                        if ((info.line !== this.lineNumber) || (info.ch !== this.columnNumber)) {
+                            this.lineNumber = info.line;
+                            this.columnNumber = info.ch;
+                            this.timer3 && clearTimeout(this.timer3);
+                            this._getSymbol(this.sourcePaths[tabIndex], info.line + 1, info.ch + 1, value => {
+                                this.setState({
+                                    hint: {
+                                        left: e.pageX,
+                                        top: e.pageY,
+                                        content: value
+                                    }
+                                });
+                            });
+                        }
+                    });
+                }}
+                value={this.state.codes[tabIndex]}
+                options={options}
+                onBeforeChange={(editor, data, value) => { }}
+                onGutterClick={(cm, n) => this._onGutterClick(this.sourcePaths[tabIndex], cm, n)}
+            />
         );
     }
 
@@ -356,7 +375,7 @@ export default class Editor extends BaseComponent {
     _updateBreakpoint(breakpoints) {
         this.cms.forEach(cm => cm.clearGutter('breakpoints'));
         breakpoints && breakpoints.forEach(breakpoint => {
-            const cm = this._getCodeMirror(breakpoint.sourcePath);
+            const cm = this._getCodeMirrorInstance(breakpoint.sourcePath);
             if (cm !== null) {
                 cm.setGutterMarker(breakpoint.lineNumber - 1, 'breakpoints', this._makeMarker());
             }
@@ -389,13 +408,27 @@ export default class Editor extends BaseComponent {
         });
 
         if (location) {
-            const cm = this._getCodeMirror(location.sourcePath);
+            const cm = this._getCodeMirrorInstance(location.sourcePath);
             const info = cm.lineInfo(location.lineNumber - 1);
             cm.markText({ line: location.lineNumber - 1, ch: 0 }, { line: location.lineNumber - 1, ch: info.text.length }, { className: 'styled-background' });
         }
     }
 
-    _getCodeMirror(sourcePath) {
+    _getSymbol(sourcePath, lineNumber, columnNumber, succ) {
+        this.timer3 = setTimeout(() => {
+            getSymbolValue(sourcePath, lineNumber, columnNumber, value => {
+                console.log(`(${lineNumber}: ${columnNumber}): ${value}`);
+                succ && succ(value);
+            });
+            this.timer3 = null;
+        }, 1000);
+    }
+
+    _evaluation(expression) {
+        evaluation(expression, value => this.setState({ expressionValue: value }));
+    }
+
+    _getCodeMirrorInstance(sourcePath) {
         for (let i = 0; i < this.sourcePaths.length; i += 1) {
             if (this.sourcePaths[i] === sourcePath) {
                 return this.cms[i];
@@ -405,16 +438,13 @@ export default class Editor extends BaseComponent {
         return null;
     }
 
-    _getSymbol(sourcePath, lineNumber, columnNumber) {
-        this.timer3 = setTimeout(() => {
-            getSymbolValue(sourcePath, lineNumber, columnNumber, value => {
-                console.log(`(${lineNumber}: ${columnNumber}): ${value}`);
-            });
-            this.timer3 = null;
-        }, 1000);
-    }
+    _getTabIndex(sourcePath) {
+        for (let i = 0; i < this.sourcePaths.length; i += 1) {
+            if (this.sourcePaths[i] === sourcePath) {
+                return i;
+            }
+        }
 
-    _evaluation(expression) {
-        evaluation(expression, value => this.setState({ expressionValue: value }));
+        return -1;
     }
 }
