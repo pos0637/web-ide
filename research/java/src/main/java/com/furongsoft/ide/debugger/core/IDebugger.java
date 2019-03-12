@@ -17,9 +17,20 @@ public interface IDebugger {
     void dispose();
 
     /**
-     * 分析源代码
+     * 编译源代码
+     *
+     * @param rootPath 根目录
+     * @return 是否成功
      */
-    void analyze();
+    boolean compile(String rootPath);
+
+    /**
+     * 分析源代码
+     *
+     * @param rootPath 根目录
+     * @return 是否成功
+     */
+    boolean analyze(String rootPath);
 
     /**
      * 获取定义符号

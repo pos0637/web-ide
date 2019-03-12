@@ -2,6 +2,7 @@ package com.furongsoft.ide.debugger.java;
 
 import com.furongsoft.core.misc.Tracker;
 import com.furongsoft.ide.debugger.entities.Symbol;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -48,25 +49,37 @@ public class Context {
      */
     private ConcurrentHashMap<String, List<Symbol>> symbols = new ConcurrentHashMap<>();
 
+    /**
+     * 成员变量声明符号表
+     */
     private ConcurrentHashMap<String, VariableDeclaration> memberVariables = new ConcurrentHashMap<>();
 
+    /**
+     * 局部变量声明符号表
+     */
     private ConcurrentHashMap<String, VariableDeclaration> localVariables = new ConcurrentHashMap<>();
 
-    private List<SimpleName> simpleNames = new LinkedList<>();
+    /**
+     * 名称符号表
+     */
+    private List<SimpleNameNode> simpleNames = new LinkedList<>();
 
+    /**
+     * 链接符号
+     */
     public void linkSymbols() {
-        for (SimpleName node : simpleNames) {
-            IBinding binding = node.resolveBinding();
+        for (SimpleNameNode node : simpleNames) {
+            IBinding binding = node.getSimpleName().resolveBinding();
             if (memberVariables.containsKey(binding.getKey())) {
                 VariableDeclaration v = memberVariables.get(binding.getKey());
-                addSymbol(new Symbol(Symbol.SYMBOL_TYPE_REFS, Symbol.SYMBOL_SUB_TYPE_MEMBER_VARIABLE, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength(), binding));
+                addSymbol(new Symbol(Symbol.SYMBOL_TYPE_REFS, Symbol.SYMBOL_SUB_TYPE_MEMBER_VARIABLE, binding.getName(), binding.getKey(), node.getSimpleName().getStartPosition(), node.getSimpleName().getLength(), binding), node.getSourcePath(), node.getCompilationUnit());
                 Tracker.info(String.format("SimpleName(member): %s, (%d)", v.getName(), v.getStartPosition()));
             } else if (localVariables.containsKey(binding.getKey())) {
                 VariableDeclaration v = localVariables.get(binding.getKey());
-                addSymbol(new Symbol(Symbol.SYMBOL_TYPE_REFS, Symbol.SYMBOL_SUB_TYPE_LOCAL_VARIABLE, binding.getName(), binding.getKey(), node.getStartPosition(), node.getLength(), binding));
+                addSymbol(new Symbol(Symbol.SYMBOL_TYPE_REFS, Symbol.SYMBOL_SUB_TYPE_LOCAL_VARIABLE, binding.getName(), binding.getKey(), node.getSimpleName().getStartPosition(), node.getSimpleName().getLength(), binding), node.getSourcePath(), node.getCompilationUnit());
                 Tracker.info(String.format("SimpleName(local): %s, (%d)", v.getName(), v.getStartPosition()));
             } else {
-                Tracker.info(String.format("SimpleName: %s, (%d)", binding.getName(), node.getStartPosition()));
+                Tracker.info(String.format("SimpleName: %s, (%d)", binding.getName(), node.getSimpleName().getStartPosition()));
             }
         }
     }
@@ -77,6 +90,17 @@ public class Context {
      * @param symbol 符号
      */
     public void addSymbol(Symbol symbol) {
+        addSymbol(symbol, sourcePath, compilationUnit);
+    }
+
+    /**
+     * 添加符号
+     *
+     * @param symbol          符号
+     * @param sourcePath      源代码路径
+     * @param compilationUnit 编译单元
+     */
+    public void addSymbol(Symbol symbol, String sourcePath, CompilationUnit compilationUnit) {
         symbol.setSourcePath(sourcePath.replace(rootPath + "/", ""));
         symbol.setKey(getSymbolKey(symbol));
         symbol.setLineNumber(compilationUnit.getLineNumber(symbol.getPosition()));
@@ -133,6 +157,15 @@ public class Context {
     }
 
     /**
+     * 添加名称符号
+     *
+     * @param simpleName 名称符号
+     */
+    public void addSimpleNameNode(SimpleName simpleName) {
+        simpleNames.add(new SimpleNameNode(simpleName, sourcePath, compilationUnit));
+    }
+
+    /**
      * 获取符号类型缩写
      *
      * @param symbol 符号
@@ -154,5 +187,17 @@ public class Context {
         key = key.replace("~", "");
 
         return key;
+    }
+
+    /**
+     * 名称符号节点
+     */
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    private class SimpleNameNode {
+        private SimpleName simpleName;
+        private String sourcePath;
+        private CompilationUnit compilationUnit;
     }
 }

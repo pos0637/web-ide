@@ -20,8 +20,8 @@ public class DebuggerController {
     }
 
     @GetMapping("/analyze")
-    public RestResponse analyze() {
-        debugger.analyze();
+    public RestResponse analyze(@RequestParam String rootPath) {
+        debugger.analyze(rootPath);
         return new RestResponse(HttpStatus.OK);
     }
 

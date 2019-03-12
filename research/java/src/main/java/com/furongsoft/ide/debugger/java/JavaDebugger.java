@@ -98,8 +98,22 @@ public class JavaDebugger extends Debugger implements Runnable {
     }
 
     @Override
-    public synchronized void analyze() {
-        analyzer.analyze(ROOT_PATH);
+    public synchronized boolean compile(String rootPath) {
+        String command = String.format("javac -g -source 1.8 -target 1.8 -sourcepath %s %s/*.java", rootPath, rootPath);
+        ProcessExecutor targetProcess = new ProcessExecutor().start(command, output, MAX_LINES);
+        if (targetProcess == null) {
+            return false;
+        }
+
+        targetProcess.join();
+        targetProcess.stop();
+
+        return true;
+    }
+
+    @Override
+    public synchronized boolean analyze(String rootPath) {
+        return analyzer.analyze(rootPath);
     }
 
     @Override
@@ -247,9 +261,21 @@ public class JavaDebugger extends Debugger implements Runnable {
 
             // 启动脚本
             Map<String, String> map = JSONObject.parseObject(arguments, Map.class);
+            if (!map.containsKey("-classpath")) {
+                return false;
+            }
+
             StringBuilder sb = new StringBuilder();
             if (arguments != null) {
                 map.forEach((key, value) -> sb.append(key).append(" ").append(value));
+            }
+
+            if (!compile(map.get("-classpath"))) {
+                return false;
+            }
+
+            if (!analyze(map.get("-classpath"))) {
+                return false;
             }
 
             String command = String.format("java %s -Xdebug -Xrunjdwp:transport=dt_socket,suspend=y,server=y,address=%s %s", sb.toString(), PORT, script);

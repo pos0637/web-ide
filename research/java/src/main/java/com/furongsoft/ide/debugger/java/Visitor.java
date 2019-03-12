@@ -4,8 +4,6 @@ import com.furongsoft.core.misc.Tracker;
 import com.furongsoft.ide.debugger.entities.Symbol;
 import org.eclipse.jdt.core.dom.*;
 
-import java.util.concurrent.ConcurrentHashMap;
-
 /**
  * AST访问器
  *
@@ -99,7 +97,7 @@ public class Visitor extends ASTVisitor {
             return super.visit(node);
         }
 
-        context.getSimpleNames().add(node);
+        context.addSimpleNameNode(node);
 
         return super.visit(node);
     }

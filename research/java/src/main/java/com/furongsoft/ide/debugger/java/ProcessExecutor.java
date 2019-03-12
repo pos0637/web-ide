@@ -6,7 +6,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -103,6 +102,24 @@ public class ProcessExecutor implements Runnable {
 
         synchronized (this) {
             this.process = null;
+        }
+    }
+
+    /**
+     * 等待进程结束
+     */
+    public void join() {
+        Thread thread;
+        synchronized (this) {
+            thread = this.thread;
+        }
+
+        if (thread != null) {
+            try {
+                thread.join();
+            } catch (InterruptedException e) {
+                Tracker.error(e);
+            }
         }
     }
 

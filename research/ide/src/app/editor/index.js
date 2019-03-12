@@ -225,6 +225,9 @@ export default class Editor extends BaseComponent {
                         disabled={this.state.state !== 'Idle'}
                         url="/api/v1/debugger/analyze"
                         method="get"
+                        params={{
+                            rootPath: 'demos/demo2'
+                        }}
                         resolve={data => {
                             console.log(data);
                         }}

@@ -1,17 +1,6 @@
 import { request } from '~/components/request';
 
 /**
- * 分析源代码
- * 
- * @export
- * @param {*} succ 成功处理函数
- * @param {*} err 错误处理函数
- */
-export function analyze(succ, err) {
-    request('/api/v1/debugger/analyze', 'get', null, succ, err);
-}
-
-/**
  * 获取定义符号
  * 
  * @export

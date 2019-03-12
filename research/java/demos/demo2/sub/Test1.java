@@ -7,8 +7,8 @@ public class Test1 {
         System.out.println("Test1:foo");
     }
 
-    public int bar(int a, int b) {
-        System.out.println("Test1:bar " + (a + b));
-        return a + b;
+    public int bar(int abc, int b) {
+        System.out.println("Test1:bar " + (abc + b));
+        return abc + b;
     }
 }
