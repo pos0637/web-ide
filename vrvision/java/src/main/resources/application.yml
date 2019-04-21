@@ -1,0 +1,36 @@
+server:
+  port: 8080
+  compression:
+    enabled: true
+    mime-types: application/json,application/xml,text/html,text/xml,text/plain,application/javascript,text/css,image/webp,image/apng,image/png,image/jpeg
+    min-response-size: 2048
+
+spring:
+  devtools:
+    restart:
+      enabled: true
+
+  servlet:
+    multipart:
+      # 最大上传文件大小
+      max-file-size: 10MB
+      # 最大提交请求大小
+      max-request-size: 10MB
+
+resources:
+  # 资源访问URL
+  url: /resources
+  # 资源路径
+  path: ./resources
+
+upload:
+  # 附件访问URL
+  url: /attachments
+  # 附件路径
+  path: ./attachments
+
+logging:
+  path: ./logs
+  config: classpath:logback-config.xml
+  level:
+    root: info
