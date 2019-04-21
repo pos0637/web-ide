@@ -273,7 +273,7 @@ public class JavaDebugger extends Debugger implements Runnable {
                 return false;
             }
 
-            String command = String.format("java -classpath %s -Xdebug -Xrunjdwp:transport=dt_socket,suspend=y,server=y,address=%s %s", map.get("-sourcepath"), PORT, script);
+            String command = String.format("java -classpath %s;%s -Djava.library.path=C:/tools/opencv/build/java/x64 -Xdebug -Xrunjdwp:transport=dt_socket,suspend=y,server=y,address=%s %s", map.get("-sourcepath"), map.get("-classpath"), PORT, script);
             targetProcess = new ProcessExecutor().start(command, output, MAX_LINES);
             if (targetProcess == null) {
                 return false;
@@ -689,7 +689,7 @@ public class JavaDebugger extends Debugger implements Runnable {
             }
 
             StackFrame stackFrame = threadReference.frame(0);
-            ReferenceType classType = stackFrame.thisObject().referenceType();
+            ReferenceType classType = stackFrame.location().declaringType();
             List<LocalVariable> localVariables = stackFrame.visibleVariables();
             Location location = stackFrame.location();
             Method method = location.method();
@@ -705,14 +705,17 @@ public class JavaDebugger extends Debugger implements Runnable {
                 variables.add(new Variable(VariableType.local, value.type().name(), localVariable.name(), value.toString(), getSymbolKey(classType, method, localVariable)));
             }
 
-            Tracker.info(stackFrame.thisObject().type().name());
-            List<Field> fields = classType.allFields();
-            Map<Field, Value> map = stackFrame.thisObject().getValues(fields);
-            for (Map.Entry<Field, Value> entry : map.entrySet()) {
-                Field field = entry.getKey();
-                Value value = entry.getValue();
-                Tracker.info(String.format("=========== member -> %s %s = %s", value.type(), field.name(), value));
-                variables.add(new Variable(VariableType.member, value.type().name(), field.name(), value.toString(), getSymbolKey(classType, field)));
+            if (stackFrame.thisObject() != null) {
+                Tracker.info(stackFrame.thisObject().type().name());
+                classType = stackFrame.thisObject().referenceType();
+                List<Field> fields = classType.allFields();
+                Map<Field, Value> map = stackFrame.thisObject().getValues(fields);
+                for (Map.Entry<Field, Value> entry : map.entrySet()) {
+                    Field field = entry.getKey();
+                    Value value = entry.getValue();
+                    Tracker.info(String.format("=========== member -> %s %s = %s", value.type(), field.name(), value));
+                    variables.add(new Variable(VariableType.member, value.type().name(), field.name(), value.toString(), getSymbolKey(classType, field)));
+                }
             }
 
             synchronized (this) {

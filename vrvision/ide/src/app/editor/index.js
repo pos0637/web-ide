@@ -157,7 +157,7 @@ export default class Editor extends BaseComponent {
                             script: this.state.className,
                             arguments: {
                                 '-sourcepath': 'demos/demo3',
-                                '-classpath': 'demos/demo3/javax.websocket-api-1.1.jar'
+                                '-classpath': 'demos/demo3/Java-WebSocket-1.4.0-with-dependencies.jar;demos/demo3/opencv-410.jar'
                             }
                         }}
                         resolve={data => {

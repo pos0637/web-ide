@@ -1,20 +1,19 @@
+import org.opencv.core.CvType;
+import org.opencv.core.Mat;
+
 public class Test {
-    private static double f = 1.5D;
-    private static long l = 123223213L;
-    private String d = "abc";
+    public static void main(String[] args) throws Exception {
+        System.out.println("Hello World!");
 
-    public void foo() {
-        int a = 10;
-        int b = 20;
-        bar(a, b);
-    }
+        int port = 8887;
+        VisionServer s = new VisionServer(port);
+        s.start();
 
-    public void bar(int a, int b) {
-        double c = f * l + a / b;
-        System.out.println("Hello World! " + c + d);
-    }
+        Mat m = Mat.eye(3, 3, CvType.CV_8UC1);
+        System.out.println(m.dump());
 
-    public static void main(String[] args) {
-        new Test().foo();
+        while (true) {
+            Thread.sleep(1000);
+        }
     }
 }

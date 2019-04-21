@@ -185,6 +185,7 @@ public class Context {
 
         key = key.replace("/~", ".");
         key = key.replace("~", "");
+        key = key.replaceAll("\\|[\\s\\S\\;]*;", "");
 
         return key;
     }
