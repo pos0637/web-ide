@@ -145,6 +145,16 @@ export default class Editor extends BaseComponent {
             hint = <div style={{ position: "fixed", color: "rgba(255, 255, 255, 1)", backgroundColor: "rgba(0, 0, 255, 0.9)", left: this.state.hint.left, top: this.state.hint.top - 30 }}>{this.state.hint.content}</div>;
         }
 
+        const tabs = [];
+        this.sourcePaths.forEach((sourcePath, index) => {
+            const key = `${index + 1}`;
+            tabs.push(
+                <Tabs.TabPane tab={sourcePath} key={key}>
+                    {this._getCodeMirror(index)}
+                </Tabs.TabPane>
+            );
+        });
+
         return (
             <div style={{ width: '100%', height: '100%', margin: '10px' }}>
                 <div>
@@ -238,13 +248,7 @@ export default class Editor extends BaseComponent {
                 <div style={{ width: '100%', height: '100%' }}>
                     <div style={{ marginTop: '10px' }}>
                         <Tabs type="card" defaultActiveKey="1" activeKey={this.state.activeTab} onChange={activeKey => { this.setState({ activeTab: activeKey }); }}>
-                            <Tabs.TabPane tab={this.sourcePaths[0]} key="1">
-                                {this._getCodeMirror(0)}
-                            </Tabs.TabPane>
-                            <Tabs.TabPane tab={this.sourcePaths[1]} key="2">
-                                {this._getCodeMirror(1)}
-                            </Tabs.TabPane>
-                            <Tabs.TabPane tab="Test2.java" key="3" />
+                            {tabs}
                         </Tabs>
                     </div>
                     <div style={{ marginTop: '10px' }}>
