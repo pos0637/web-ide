@@ -273,7 +273,7 @@ public class JavaDebugger extends Debugger implements Runnable {
                 return false;
             }
 
-            String command = String.format("java -classpath %s;%s -Djava.library.path=C:/tools/opencv/build/java/x64 -Xdebug -Xrunjdwp:transport=dt_socket,suspend=y,server=y,address=%s %s", map.get("-sourcepath"), map.get("-classpath"), PORT, script);
+            String command = String.format("java -classpath %s;%s -Djava.library.path=C:/tools/opencv4/build/java/x64 -Xdebug -Xrunjdwp:transport=dt_socket,suspend=y,server=y,address=%s %s", map.get("-sourcepath"), map.get("-classpath"), PORT, script);
             targetProcess = new ProcessExecutor().start(command, output, MAX_LINES);
             if (targetProcess == null) {
                 return false;
