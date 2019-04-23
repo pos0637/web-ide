@@ -51,10 +51,10 @@ public class Test {
         VisionServer s = new VisionServer(port);
         s.connect();
 
-        test(s, new Scalar(100, 43, 46), new Scalar(124, 255, 255), 10000, 120000);
-
         while (true) {
-            Thread.sleep(1000);
+            s.clearImages();
+            test(s, new Scalar(100, 43, 46), new Scalar(124, 255, 255), 10000, 120000);
+            Thread.sleep(10 * 1000);
         }
     }
 }

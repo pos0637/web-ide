@@ -29,7 +29,7 @@ public class WebSocketServer extends org.java_websocket.server.WebSocketServer {
 
     @Override
     public void onClose(WebSocket webSocket, int i, String s, boolean b) {
-        Tracker.info(getWebSocketId(webSocket) + " close");
+        Tracker.info("close");
     }
 
     @Override
