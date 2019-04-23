@@ -5,9 +5,9 @@ import org.opencv.imgproc.Imgproc;
 import java.util.ArrayList;
 import java.util.List;
 
-public class Main {
+public class Test {
     public static void test(VisionServer s, Scalar lower, Scalar upper, double minArea, double maxArea) {
-        byte[] data = s.capture(1000);
+        byte[] data = s.capture(1);
         if (data == null) {
             return;
         }
@@ -49,7 +49,7 @@ public class Main {
 
         int port = 8887;
         VisionServer s = new VisionServer(port);
-        s.start();
+        s.connect();
 
         test(s, new Scalar(100, 43, 46), new Scalar(124, 255, 255), 10000, 120000);
 

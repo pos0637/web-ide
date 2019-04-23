@@ -695,14 +695,14 @@ public class JavaDebugger extends Debugger implements Runnable {
             Method method = location.method();
             for (LocalVariable localVariable : method.arguments()) {
                 Value value = stackFrame.getValue(localVariable);
-                Tracker.info(String.format("=========== arguments -> %s %s = %s", value.type(), localVariable.name(), value));
-                variables.add(new Variable(VariableType.local, value.type().name(), localVariable.name(), value.toString(), getSymbolKey(classType, method, localVariable)));
+                Tracker.info(String.format("=========== arguments -> %s %s = %s", localVariable.typeName(), localVariable.name(), value));
+                variables.add(new Variable(VariableType.local, localVariable.typeName(), localVariable.name(), value == null ? "null" : value.toString(), getSymbolKey(classType, method, localVariable)));
             }
 
             for (LocalVariable localVariable : localVariables) {
                 Value value = stackFrame.getValue(localVariable);
-                Tracker.info(String.format("=========== local -> %s %s = %s", value.type(), localVariable.name(), value));
-                variables.add(new Variable(VariableType.local, value.type().name(), localVariable.name(), value.toString(), getSymbolKey(classType, method, localVariable)));
+                Tracker.info(String.format("=========== local -> %s %s = %s", localVariable.typeName(), localVariable.name(), value));
+                variables.add(new Variable(VariableType.local, localVariable.typeName(), localVariable.name(), value == null ? "null" : value.toString(), getSymbolKey(classType, method, localVariable)));
             }
 
             if (stackFrame.thisObject() != null) {
@@ -713,8 +713,8 @@ public class JavaDebugger extends Debugger implements Runnable {
                 for (Map.Entry<Field, Value> entry : map.entrySet()) {
                     Field field = entry.getKey();
                     Value value = entry.getValue();
-                    Tracker.info(String.format("=========== member -> %s %s = %s", value.type(), field.name(), value));
-                    variables.add(new Variable(VariableType.member, value.type().name(), field.name(), value.toString(), getSymbolKey(classType, field)));
+                    Tracker.info(String.format("=========== member -> %s %s = %s", field.typeName(), field.name(), value));
+                    variables.add(new Variable(VariableType.member, field.typeName(), field.name(), value == null ? "null" : value.toString(), getSymbolKey(classType, field)));
                 }
             }
 

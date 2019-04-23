@@ -34,3 +34,7 @@ logging:
   config: classpath:logback-config.xml
   level:
     root: info
+
+ide:
+  websocketserver:
+    port: 8887

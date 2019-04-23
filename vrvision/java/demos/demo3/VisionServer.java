@@ -1,20 +1,20 @@
 import org.java_websocket.WebSocket;
-import org.java_websocket.handshake.ClientHandshake;
-import org.java_websocket.server.WebSocketServer;
+import org.java_websocket.client.WebSocketClient;
+import org.java_websocket.handshake.ServerHandshake;
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfByte;
 import org.opencv.imgcodecs.Imgcodecs;
 
-import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLEncoder;
-import java.net.UnknownHostException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class VisionServer extends WebSocketServer {
+public class VisionServer {
     static {
         // -Djava.library.path=$PROJECT_DIR$\opencv\x64
         System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
@@ -22,48 +22,44 @@ public class VisionServer extends WebSocketServer {
 
     private String image;
     private ConcurrentHashMap<String, Mat> mats = new ConcurrentHashMap<>();
+    private WebSocketClient client;
 
-    public VisionServer(int port) throws UnknownHostException {
-        super(new InetSocketAddress(port));
+    public VisionServer(int port) throws URISyntaxException {
+        client = new WebSocketClient(new URI("ws://localhost:" + port)) {
+            @Override
+            public void onMessage(String message) {
+                if (message.startsWith("captureResult:")) {
+                    image = message.substring("captureResult:".length());
+                } else if (message.startsWith("getImages")) {
+                    getImages();
+                } else if (message.startsWith("getImage:")) {
+                    getImage(message.substring("getImage:".length()));
+                }
+            }
+
+            @Override
+            public void onOpen(ServerHandshake handshake) {
+            }
+
+            @Override
+            public void onClose(int code, String reason, boolean remote) {
+            }
+
+            @Override
+            public void onError(Exception ex) {
+            }
+        };
     }
 
-    @Override
-    public void onOpen(WebSocket webSocket, ClientHandshake clientHandshake) {
-        webSocket.send("Welcome to the server!");
-        broadcast("new connection: " + clientHandshake.getResourceDescriptor());
-        System.out.println(getWebSocketId(webSocket) + " entered the room!");
-    }
-
-    @Override
-    public void onClose(WebSocket webSocket, int i, String s, boolean b) {
-        broadcast(webSocket + " has left the room!");
-        System.out.println(getWebSocketId(webSocket) + " has left the room!");
-    }
-
-    @Override
-    public void onMessage(WebSocket webSocket, String s) {
-        broadcast(s);
-        System.out.println(getWebSocketId(webSocket) + ": " + s);
-
-        if (s.startsWith("captureResult:")) {
-            image = s.substring("captureResult:".length());
-        } else if (s.startsWith("getImages")) {
-            getImages();
-        } else if (s.startsWith("getImage:")) {
-            getImage(s.substring("getImage:".length()));
+    public void connect() {
+        client.connect();
+        while (!client.isOpen()) {
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
-    }
-
-    @Override
-    public void onError(WebSocket webSocket, Exception e) {
-        e.printStackTrace();
-    }
-
-    @Override
-    public void onStart() {
-        System.out.println("Server started!");
-        setConnectionLostTimeout(0);
-        setConnectionLostTimeout(100);
     }
 
     /**
@@ -73,7 +69,7 @@ public class VisionServer extends WebSocketServer {
      * @return 图像
      */
     public byte[] capture(int timeout) {
-        broadcast("capture");
+        client.send("capture");
 
         image = null;
         int elapsed = 0;
@@ -124,7 +120,7 @@ public class VisionServer extends WebSocketServer {
             sb.append(key);
         }
 
-        broadcast("images:" + sb.toString());
+        client.send("images:" + sb.toString());
     }
 
     /**
@@ -134,14 +130,14 @@ public class VisionServer extends WebSocketServer {
      */
     private void getImage(String name) {
         if (!mats.containsKey(name)) {
-            broadcast("image:");
+            client.send("image:");
             return;
         }
 
         MatOfByte buffer = new MatOfByte();
         Imgcodecs.imencode(".png", mats.get(name), buffer);
         String data = new String(Base64.getEncoder().encode(buffer.toArray()), StandardCharsets.ISO_8859_1);
-        broadcast("image:" + URLEncoder.encode(data, Charset.forName("ascii")));
+        client.send("image:" + URLEncoder.encode(data, Charset.forName("ascii")));
     }
 
     private String getWebSocketId(WebSocket webSocket) {
