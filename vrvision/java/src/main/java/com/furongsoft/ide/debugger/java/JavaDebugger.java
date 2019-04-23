@@ -20,10 +20,7 @@ import org.springframework.stereotype.Component;
 
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
+import java.io.*;
 import java.nio.charset.Charset;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -242,6 +239,34 @@ public class JavaDebugger extends Debugger implements Runnable {
     }
 
     @Override
+    public synchronized boolean saveCode(String sourcePath, String code) {
+        File file = new File(ROOT_PATH + '/' + sourcePath);
+        if (!file.exists() || !file.isFile()) {
+            return false;
+        }
+
+        FileWriter writer = null;
+
+        try {
+            writer = new FileWriter(file, Charset.forName("UTF-8"));
+            writer.write(code);
+
+            return true;
+        } catch (IOException e) {
+            Tracker.error(e);
+            return false;
+        } finally {
+            if (writer != null) {
+                try {
+                    writer.close();
+                } catch (IOException e) {
+                    Tracker.error(e);
+                }
+            }
+        }
+    }
+
+    @Override
     public Collection<String> getConsole() {
         synchronized (output) {
             Collection<String> ret = new ArrayList<>(output);
@@ -388,7 +413,18 @@ public class JavaDebugger extends Debugger implements Runnable {
         threadReference = null;
         stepRequestMap.clear();
         vm.resume();
+
         debuggerState = DebuggerState.Running;
+        threadReference = null;
+        location = null;
+        if (stack != null) {
+            stack.clear();
+            stack = null;
+        }
+        if (variables != null) {
+            variables.clear();
+            variables = null;
+        }
 
         return true;
     }

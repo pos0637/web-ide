@@ -8,6 +8,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/v1/debugger")
 @CrossOrigin
@@ -43,6 +45,11 @@ public class DebuggerController {
     @GetMapping("/codes")
     public RestResponse getCode(@RequestParam String sourcePath) {
         return new RestResponse(HttpStatus.OK, null, debugger.getCode(sourcePath));
+    }
+
+    @PutMapping("/codes")
+    public RestResponse saveCode(@RequestBody Map<String, String> map) {
+        return new RestResponse(HttpStatus.OK, null, debugger.saveCode(map.get("sourcePath"), map.get("code")));
     }
 
     @GetMapping("/information")

@@ -117,6 +117,15 @@ public interface IDebugger {
     String getCode(String sourcePath);
 
     /**
+     * 保存源代码
+     *
+     * @param sourcePath 源代码路径
+     * @param code       源代码
+     * @return 是否成功
+     */
+    boolean saveCode(String sourcePath, String code);
+
+    /**
      * 获取状态
      *
      * @return 状态
