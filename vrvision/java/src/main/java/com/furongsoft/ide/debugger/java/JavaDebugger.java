@@ -388,6 +388,7 @@ public class JavaDebugger extends Debugger implements Runnable {
         threadReference = null;
         stepRequestMap.clear();
         vm.resume();
+        debuggerState = DebuggerState.Running;
 
         return true;
     }

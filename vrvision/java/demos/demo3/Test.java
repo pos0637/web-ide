@@ -7,7 +7,7 @@ import java.util.List;
 
 public class Test {
     public static void test(VisionServer s, Scalar lower, Scalar upper, double minArea, double maxArea) {
-        byte[] data = s.capture(1);
+        byte[] data = s.capture(10 * 1000);
         if (data == null) {
             return;
         }
