@@ -96,7 +96,7 @@ public class JavaDebugger extends Debugger implements Runnable {
 
     @Override
     public synchronized boolean compile(String rootPath, String classPath) {
-        String command = String.format("javac -J-Duser.language=en -g -source 1.8 -target 1.8 -classpath %s -sourcepath %s %s/*.java", classPath, rootPath, rootPath);
+        String command = String.format("javac -J-Duser.language=en -encoding utf-8 -g -source 1.8 -target 1.8 -classpath %s -sourcepath %s %s/*.java", classPath, rootPath, rootPath);
         ProcessExecutor targetProcess = new ProcessExecutor().start(command, output, MAX_LINES);
         if (targetProcess == null) {
             return false;

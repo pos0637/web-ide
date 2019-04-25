@@ -2,6 +2,7 @@ package com.furongsoft.ide.debugger.java;
 
 import com.furongsoft.core.misc.Tracker;
 import com.furongsoft.ide.debugger.entities.Symbol;
+import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.CompilationUnit;
@@ -16,6 +17,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Analyzer {
@@ -62,12 +64,18 @@ public class Analyzer {
             return false;
         }
 
+        Map<String, String> options = JavaCore.getOptions();
+        options.put(JavaCore.COMPILER_COMPLIANCE, JavaCore.VERSION_11);
+        options.put(JavaCore.COMPILER_CODEGEN_TARGET_PLATFORM, JavaCore.VERSION_11);
+        options.put(JavaCore.COMPILER_SOURCE, JavaCore.VERSION_11);
+
         final ASTParser parser = ASTParser.newParser(AST.JLS11);
         parser.setResolveBindings(true);
         parser.setBindingsRecovery(true);
         parser.setStatementsRecovery(true);
         parser.setKind(ASTParser.K_COMPILATION_UNIT);
-        parser.setEnvironment(new String[0], new String[0], null, true);
+        parser.setCompilerOptions(options);
+        parser.setEnvironment(new String[]{rootFolder.getAbsolutePath()}, new String[]{rootFolder.getAbsolutePath()}, new String[]{"UTF-8"}, true);
 
         try {
             context = new Context();
