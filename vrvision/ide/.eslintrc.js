@@ -33,7 +33,8 @@ module.exports = {
     'class-methods-use-this': 0,
     'no-unused-expressions': 0,
     'object-shorthand': 0,
-    'global-require': 0
+    'global-require': 0,
+    'prefer-destructuring': 0
   },
   settings: {
     polyfills: ['fetch', 'promises', 'url'],

@@ -52,6 +52,19 @@ export function getCode(sourcePath, succ, err) {
 }
 
 /**
+ * 保存代码
+ *
+ * @export
+ * @param {*} sourcePath 源代码路径
+ * @param {*} code 源代码
+ * @param {*} succ 成功处理函数
+ * @param {*} err 错误处理函数
+ */
+export function saveCode(sourcePath, code, succ, err) {
+    request('/api/v1/debugger/codes', 'put', { sourcePath: sourcePath, code: code }, succ, err);
+}
+
+/**
  * 获取调试器信息
  *
  * @export
