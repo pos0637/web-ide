@@ -48,10 +48,6 @@ public class VisionServer {
             public void onMessage(String message) {
                 if (message.startsWith("captureResult:")) {
                     image = message.substring("captureResult:".length());
-                } else if (message.startsWith("getImages")) {
-                    getImages();
-                } else if (message.startsWith("getImage:")) {
-                    getImage(message.substring("getImage:".length()));
                 }
             }
 
@@ -140,14 +136,17 @@ public class VisionServer {
      * @param mat  图片
      */
     public void showImage(String name, Mat mat) {
-        mats.put(name, mat);
+        MatOfByte buffer = new MatOfByte();
+        Imgcodecs.imencode(".png", mat, buffer);
+        String data = new String(Base64.getEncoder().encode(buffer.toArray()), StandardCharsets.ISO_8859_1);
+        client.send("saveImage:" + name + "," + URLEncoder.encode(data, Charset.forName("ascii")));
     }
 
     /**
      * 清空图片列表
      */
     public void clearImages() {
-        mats.clear();
+        client.send("clearImages");
     }
 
     /**
@@ -244,39 +243,6 @@ public class VisionServer {
         Core.gemm(cameraMatrix, dst, 1.0, Mat.zeros(cameraMatrix.size(), cameraMatrix.type()), 0.0, h);
 
         return h.inv();
-    }
-
-    /**
-     * 获取图片列表
-     */
-    private void getImages() {
-        StringBuilder sb = new StringBuilder();
-        for (String key : mats.keySet()) {
-            if (sb.length() > 0) {
-                sb.append(",");
-            }
-
-            sb.append(key);
-        }
-
-        client.send("images:" + sb.toString());
-    }
-
-    /**
-     * 获取图片
-     *
-     * @param name 名称
-     */
-    private void getImage(String name) {
-        if (!mats.containsKey(name)) {
-            client.send("image:");
-            return;
-        }
-
-        MatOfByte buffer = new MatOfByte();
-        Imgcodecs.imencode(".png", mats.get(name), buffer);
-        String data = new String(Base64.getEncoder().encode(buffer.toArray()), StandardCharsets.ISO_8859_1);
-        client.send("image:" + URLEncoder.encode(data, Charset.forName("ascii")));
     }
 
     private String getWebSocketId(WebSocket webSocket) {
